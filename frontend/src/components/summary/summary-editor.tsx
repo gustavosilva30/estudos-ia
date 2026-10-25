@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Markdown } from "@/components/markdown";
+import { ReadAloud } from "@/components/read-aloud";
 import { Alert, Button, Card, Field, Skeleton } from "@/components/ui/primitives";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Badge, PageHeader } from "@/components/ui/forms";
@@ -261,6 +262,8 @@ function EditorBody({
               setSaved(false);
             }}
           />
+
+          <ReadAloud text={content} title={title} format="markdown" />
 
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">

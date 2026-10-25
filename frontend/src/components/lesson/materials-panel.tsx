@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ReadAloud } from "@/components/read-aloud";
 import { Alert, Button, Card } from "@/components/ui/primitives";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Badge, EmptyState, Textarea } from "@/components/ui/forms";
@@ -170,9 +171,12 @@ function MaterialCard({
           </div>
         </div>
       ) : (
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3 font-sans text-sm leading-relaxed">
-          {material.content}
-        </pre>
+        <div className="space-y-3">
+          <ReadAloud text={material.content} format="plain" title={label} />
+          <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3 font-sans text-sm leading-relaxed">
+            {material.content}
+          </pre>
+        </div>
       )}
     </Card>
   );

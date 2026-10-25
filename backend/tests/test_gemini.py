@@ -207,6 +207,7 @@ def test_logs_nao_contem_chave_nem_conteudo(caplog):
         provider_with(handler).complete(make_request(material="SEGREDO-DO-USUARIO-XYZ"))
     assert KEY not in caplog.text and "SEGREDO-DO-USUARIO-XYZ" not in caplog.text
     assert "gemini_http_error status=400" in caplog.text
+    assert "API key not valid" in caplog.text  # o motivo do Google fica no log do servidor
 
 
 # ---------- configuração ----------
@@ -282,3 +283,33 @@ def test_comando_de_diagnostico_ok_e_falha(monkeypatch, capsys):
     assert check.main() == 1
     out = capsys.readouterr().out
     assert "ERRO ao chamar a IA" in out and KEY not in out
+
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (httpx.Response(402, json={"error": {"message": "Billing account required"}}), "Billing account required"),
+        (httpx.Response(402, json={"error": {"status": "FAILED_PRECONDITION"}}), "FAILED_PRECONDITION"),
+        (httpx.Response(402, json={"error": "pagamento pendente"}), "pagamento pendente"),
+        (httpx.Response(402, content=b"Payment   Required  "), "Payment Required"),  # corpo que não é JSON
+        (httpx.Response(402, json={"error": {"message": ""}}), ""),
+    ],
+)
+def test_detalhe_do_provedor_e_capturado_mesmo_sem_mensagem(response, expected):
+    with pytest.raises(ProviderError) as exc:
+        provider_with(lambda r: response).complete(make_request())
+    assert expected in exc.value.detail
+    assert "Gemini HTTP 402" == str(exc.value) and not exc.value.retryable
+    assert len(exc.value.detail) <= 200
+
+
+def test_diagnostico_mostra_o_detalhe_e_nao_a_chave(monkeypatch, capsys):
+    settings = Settings(app_env="test", ai_provider="gemini", ai_api_key=KEY)
+    monkeypatch.setattr(check, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        check, "build_provider",
+        lambda s: provider_with(lambda r: httpx.Response(402, json={"error": {"message": "Billing required"}})),
+    )
+    assert check.main() == 1
+    out = capsys.readouterr().out
+    assert "Detalhe enviado pelo provedor: Billing required" in out and KEY not in out

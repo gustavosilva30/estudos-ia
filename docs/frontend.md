@@ -51,6 +51,24 @@ montagem automática de trechos do material, não um resumo real.
 - Rotas dinâmicas (`[id]`) seguem o padrão do Next 16 com `cacheComponents`: `params` (promise) dentro de `<Suspense>`; o menu também fica em `<Suspense>`
   (usa `usePathname`). As páginas da área logada declaram `export const instant = false` porque dependem da sessão (carregada no navegador).
 
+## Leitura em voz alta
+Botão **Ouvir / Pausar / Continuar / Parar** (`components/read-aloud.tsx`) no editor de resumos (lê o conteúdo atual, inclusive
+alterações ainda não salvas, e o título), em cada **texto original** da aula e no **resultado da IA**.
+- **Como funciona:** usa o sintetizador do navegador (`speechSynthesis`): sem custo, sem backend, nada vai para o nosso servidor.
+  Algumas vozes do Chrome (as "Google") são processadas online pelo Google; as vozes locais do sistema, não.
+- **Preparação do texto** (`lib/speech.ts`): resumos e resultados da IA têm a marcação Markdown removida (não fala "asterisco" nem
+  "jogo da velha"; títulos e itens de lista ganham pausa; código em bloco e HTML são ignorados). O texto original do usuário é lido
+  como foi digitado (só junta quebras de linha dentro do parágrafo). Textos longos são divididos em trechos de até ~220 caracteres:
+  o Chrome interrompe falas muito longas.
+- **Opções (ficam salvas neste navegador):** velocidade (0,75× a 1,75×) e voz (somente vozes em português, pt-BR primeiro).
+- **Comportamento:** só uma leitura por vez; sair da tela cancela a leitura; mostra "trecho X de Y"; mensagens claras de erro.
+- **Limitações:** a qualidade e as vozes disponíveis dependem do aparelho/navegador (sem voz em português instalada, o app avisa);
+  não há marcação do trecho lido na tela nem retomada de onde parou depois de fechar a página. Possível evolução (não implementada):
+  voz neural gerada por API, com áudio em cache.
+- **Testes:** `lib/speech.test.ts` (limpeza e divisão do texto) e `components/read-aloud.test.tsx` (componente com sintetizador simulado:
+  ouvir/pausar/continuar/parar, velocidade e voz, uma leitura por vez, cancelamento ao sair, erros). A qualidade real da voz só dá para
+  avaliar ouvindo no navegador.
+
 ## Acessibilidade e UX
 Link "Pular para o conteúdo", rótulos em todos os campos, `aria-invalid`/`aria-describedby` nos erros, `role="alert"/"status"`,
 `aria-current` no menu, barra de progresso com `role="progressbar"`, foco visível, `prefers-reduced-motion`, esqueletos de carregamento,
@@ -62,7 +80,7 @@ cd frontend
 npm install
 npm run dev        # http://localhost:3000 (precisa do backend em 127.0.0.1:8000)
 npm run lint && npx tsc --noEmit
-npm test           # Vitest: cliente da API, redirecionamento seguro, datas
+npm test           # Vitest: cliente da API, redirecionamento seguro, datas, leitura em voz alta
 npm run build
 ```
 `BACKEND_INTERNAL_URL` (padrão `http://127.0.0.1:8000`) define para onde o Next encaminha `/api/*`. **Atenção:** é lido no *build*;

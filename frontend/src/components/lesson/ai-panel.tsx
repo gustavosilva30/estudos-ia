@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Markdown } from "@/components/markdown";
+import { ReadAloud } from "@/components/read-aloud";
 import { Alert, Button, Card, Field } from "@/components/ui/primitives";
 import { Badge, EmptyState, Select } from "@/components/ui/forms";
 import { SparkIcon } from "@/components/ui/icons";
@@ -174,6 +175,8 @@ export function AiPanel({ materials }: { materials: Material[] }) {
               este texto é só uma montagem automática de trechos do seu material — não é um resumo de verdade.
             </Alert>
           )}
+
+          <ReadAloud text={result.markdown} format="markdown" />
 
           <div className="rounded-lg border border-line p-4">
             <Markdown>{result.markdown}</Markdown>

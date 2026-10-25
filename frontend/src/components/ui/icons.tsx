@@ -105,3 +105,19 @@ export const FolderIcon = (p: IconProps) => (
     <path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1z" />
   </Base>
 );
+export const SpeakerIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 10v4h4l5 4V6l-5 4z" />
+    <path d="M16.5 9a4 4 0 010 6M19 6.5a8 8 0 010 11" />
+  </Base>
+);
+export const PauseIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M8 5v14M16 5v14" />
+  </Base>
+);
+export const StopIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="6" y="6" width="12" height="12" rx="1.5" />
+  </Base>
+);

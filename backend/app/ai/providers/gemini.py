@@ -121,20 +121,28 @@ class GeminiProvider:
 
     # ------------------------------------------------------------------
     def _http_error(self, response: httpx.Response) -> ProviderError:
-        message = ""
+        detail = ""
         try:
-            message = str(response.json().get("error", {}).get("message", ""))[:200]
+            error = response.json().get("error")
+            if isinstance(error, dict):
+                detail = str(error.get("message") or error.get("status") or "")
+            elif isinstance(error, str):
+                detail = error
         except (ValueError, AttributeError):
             pass
-        # Só código e mensagem do Google (que não contêm o conteúdo do usuário nem a chave).
-        log.warning("gemini_http_error status=%s message=%r", response.status_code, message)
+        if not detail:  # corpo sem o campo esperado (ex.: 402 vazio): usa o início do texto bruto
+            detail = response.text
+        detail = " ".join(detail.split())[:200]
+        # Só código e texto curto do Google (não contêm o conteúdo do usuário nem a chave).
+        log.warning("gemini_http_error status=%s detail=%r", response.status_code, detail)
         code = response.status_code
         if code in (429, 503):  # limite de uso / modelo sobrecarregado
-            return ProviderRateLimited(f"Gemini HTTP {code}")
+            return ProviderRateLimited(f"Gemini HTTP {code}", detail)
         if code in (500, 502, 504):
-            return ProviderUnavailable(f"Gemini HTTP {code}")
-        # 400/401/403/404...: chave inválida, modelo inexistente ou pedido malformado. Repetir não resolve.
-        return ProviderError(f"Gemini HTTP {code}")
+            return ProviderUnavailable(f"Gemini HTTP {code}", detail)
+        # 400/401/402/403/404...: chave inválida, faturamento, modelo inexistente ou pedido malformado.
+        # Repetir não resolve.
+        return ProviderError(f"Gemini HTTP {code}", detail)
 
     def _parse(self, response: httpx.Response) -> LLMResponse:
         try:

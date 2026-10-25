@@ -43,8 +43,11 @@ def main() -> int:
         response = provider.complete(request)
     except ProviderError as exc:
         print(f"ERRO ao chamar a IA [{exc.status}]: {exc}")
-        print("Dicas: 400/401/403 = chave inválida ou sem permissão; 404 = nome do modelo incorreto; "
-              "429 = limite/cota; 'incompleta' = aumente AI_MAX_OUTPUT_TOKENS ou reduza AI_THINKING_LEVEL.")
+        if exc.detail:
+            print(f"Detalhe enviado pelo provedor: {exc.detail}")
+        print("Dicas: 400/401/403 = chave inválida ou sem permissão; 402 = faturamento não configurado, suspenso ou "
+              "sem saldo no projeto da chave; 404 = nome do modelo incorreto; 429 = limite/cota; "
+              "'incompleta' = aumente AI_MAX_OUTPUT_TOKENS ou reduza AI_THINKING_LEVEL.")
         return 1
 
     try:

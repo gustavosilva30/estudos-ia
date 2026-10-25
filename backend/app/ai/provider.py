@@ -14,6 +14,12 @@ class ProviderError(Exception):
     status = "error"
     retryable = False
 
+    def __init__(self, message: str = "", detail: str = "") -> None:
+        super().__init__(message)
+        # Texto curto devolvido pelo fornecedor. Serve só para diagnóstico (log e `app.ai.check`);
+        # nunca é mostrado ao usuário do app.
+        self.detail = detail
+
 
 class ProviderTimeout(ProviderError):
     status = "timeout"
