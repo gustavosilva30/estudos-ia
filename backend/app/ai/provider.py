@@ -25,6 +25,13 @@ class ProviderRateLimited(ProviderError):
     retryable = True
 
 
+class ProviderUnavailable(ProviderError):
+    """Falha transitória (rede, 5xx): vale repetir, mas não é limite de uso."""
+
+    status = "error"
+    retryable = True
+
+
 @dataclass(frozen=True)
 class LLMRequest:
     operation: str

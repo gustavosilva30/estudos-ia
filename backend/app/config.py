@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     ai_provider: str = "fake"
     ai_api_key: SecretStr | None = None
     ai_model: str = "fake-1"
+    ai_api_base_url: str = "https://generativelanguage.googleapis.com"
+    # Gemini: "" = padrão do modelo. Valores: minimal | low | medium | high (varia por modelo).
+    ai_thinking_level: str = Field(default="", pattern="^(|minimal|low|medium|high)$")
     ai_timeout_seconds: float = 60
     ai_max_input_chars: int = 60_000
     ai_max_output_tokens: int = 2_000

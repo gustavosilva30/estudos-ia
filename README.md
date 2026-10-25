@@ -6,7 +6,7 @@ Plataforma web de estudos pessoais com IA: matérias, aulas, resumos, preparaç�
 
 ## Estado atual
 Etapas E0–E6 concluídas: o MVP está utilizável de ponta a ponta (cadastro, matérias, aulas, textos, IA de demonstração, resumos editáveis com versões, pesquisa). Próxima: **E7** (endurecimento, deploy no EasyPanel, backup).
-Detalhes e pendências em [docs/roadmap.md](docs/roadmap.md). A IA usa apenas o provedor de teste (`fake`); nenhum fornecedor real está integrado.
+Detalhes e pendências em [docs/roadmap.md](docs/roadmap.md). A IA tem dois provedores: `fake` (teste, padrão) e `gemini` (Google; ver [docs/ia.md](docs/ia.md)). O Gemini só funciona com `AI_API_KEY` configurada no servidor.
 
 ## Desenvolvimento rápido
 ```bash

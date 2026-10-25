@@ -5,10 +5,12 @@ from collections.abc import Callable
 
 from app.ai.provider import LLMProvider
 from app.ai.providers.fake import FakeProvider
+from app.ai.providers.gemini import GeminiProvider
 from app.config import Settings
 
 PROVIDERS: dict[str, Callable[[Settings], LLMProvider]] = {
     "fake": lambda s: FakeProvider(model=s.ai_model),
+    "gemini": GeminiProvider.from_settings,
 }
 
 

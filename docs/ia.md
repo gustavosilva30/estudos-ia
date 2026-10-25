@@ -12,8 +12,8 @@ endpoint /api/v1/ai/generate
 Os módulos de estudo só conhecem `LLMProvider` (`app/ai/provider.py`). Trocar de fornecedor ou modelo =
 variáveis de ambiente (`AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`) + uma classe nova em `app/ai/providers/`.
 
-**Estado atual:** só o `FakeProvider` (determinístico, sem custo, usado também nos testes). Nenhum fornecedor
-real está integrado nem configurado; `AI_PROVIDER` desconhecido faz o backend falhar na partida.
+**Provedores:** `fake` (determinístico, sem custo, usado nos testes e como padrão) e `gemini` (Google, ver abaixo).
+`AI_PROVIDER` desconhecido, ou `gemini` sem `AI_API_KEY`, faz o backend falhar na partida com uma mensagem clara.
 
 ## Operações implementadas (MVP)
 `resumo_completo`, `resumo_rapido` (sem nível de detalhe), `topicos_principais`, `explicacao_simplificada`,
@@ -76,6 +76,55 @@ Exportação TXT/PDF **não** está implementada (Fase 3).
 em português), `summary_versions` (histórico imutável). FKs compostas `(id, user_id)` como no restante.
 Excluir um texto apaga suas gerações, mas **preserva** os resumos já salvos (`generation_id` vira NULL);
 excluir a aula ou a conta apaga tudo.
+
+## Google Gemini (`AI_PROVIDER=gemini`)
+Implementação: `app/ai/providers/gemini.py` (HTTP direto com `httpx`, sem SDK). Usa o **Interactions API**
+(`POST /v1beta/interactions`, GA desde jun/2026 e recomendado pelo Google para projetos novos); o `generateContent`
+continua suportado, mas é considerado legado. Documentação consultada em 25/10/2026:
+<https://ai.google.dev/api/interactions-api> · <https://ai.google.dev/gemini-api/docs/pricing>.
+
+**Variáveis (no EasyPanel, serviço backend):**
+```
+AI_PROVIDER=gemini
+AI_API_KEY=<sua chave do Google AI Studio>      # só no painel, nunca no Git nem no chat
+AI_MODEL=gemini-3.5-flash-lite                  # ou gemini-3.8-flash (mais capaz, mais caro)
+AI_PRICE_INPUT_PER_MTOK=0.30                    # USD por milhão de tokens (confira a tabela do Google)
+AI_PRICE_OUTPUT_PER_MTOK=2.50
+AI_MAX_OUTPUT_TOKENS=4000
+AI_MONTHLY_BUDGET_USD=5                         # trava de segurança (0 = sem limite)
+# AI_THINKING_LEVEL=low                         # opcional: minimal | low | medium | high
+```
+| Modelo | Entrada / saída (US$ por 1 M tokens) | Observação |
+|---|---|---|
+| `gemini-3.5-flash-lite` | 0,30 / 2,50 | estável, o mais barato; raciocínio padrão `minimal` |
+| `gemini-3.8-flash` | 0,75 / 3,75 até 31/12/2026; 1,50 / 7,50 depois | mais capaz; aceita `low`/`medium`/`high` (não `minimal`) |
+
+Preços e nomes de modelo mudam: confira na página de preços do Google antes de fixar. A saída inclui os tokens de raciocínio.
+
+**Pontos que importam:**
+- **Raciocínio consome a saída.** O limite `max_output_tokens` inclui os tokens de "pensamento"; se estourar, a resposta vem
+  truncada (`status: incomplete`). O provedor trata isso como erro **sem repetir** (repetir só gastaria mais). Se acontecer:
+  aumente `AI_MAX_OUTPUT_TOKENS` ou reduza `AI_THINKING_LEVEL`. Atenção: o **resumo rápido** tem teto próprio de 800 tokens (`app/ai/operations.py`), que não muda com essa variável; com `gemini-3.8-flash` (raciocínio padrão `medium`) use `AI_THINKING_LEVEL=low`.
+- **Plano gratuito x pago (privacidade):** segundo o Google, no plano **gratuito** o conteúdo enviado **pode ser usado para melhorar os produtos
+  do Google**; no plano **pago** (faturamento ativado) não. Como seus textos de estudo são enviados à API, prefira uma chave de projeto **com faturamento ativado**.
+- **Armazenamento:** as chamadas vão com `store: false` (o Google não guarda a interação para continuação).
+- **Chave:** vai no cabeçalho `x-goog-api-key` (não na URL) e nunca é registrada em log. No Google Cloud, restrinja a chave à
+  "Generative Language API" e defina um **limite de gastos/alertas** no projeto.
+- **Schema:** o JSON Schema do Pydantic é simplificado antes do envio (sem `$ref`/`$defs`/limites aninhados, que podem causar erro 400);
+  a validação completa continua sendo feita pelo Pydantic na resposta.
+- **Custo estimado:** usa os tokens informados pelo Google (entrada, e saída + raciocínio como são cobrados); se faltarem, estima. É uma **estimativa conservadora**, não a fatura.
+- **Erros:** 429/503 → "sobrecarregado/limite" (repete com espera); 500/502/504 e falhas de rede → repete; 400/401/403/404 (chave inválida, modelo inexistente) → **não repete**.
+  O usuário vê só mensagens genéricas; o log do servidor registra o código HTTP e a mensagem curta do Google (sem conteúdo do usuário, sem chave).
+
+**Diagnóstico (faz uma chamada pequena e diz se está funcionando):** no console do serviço backend no EasyPanel:
+```
+python -m app.ai.check
+```
+Mostra provedor, modelo e `OK` (com tokens) ou o motivo do erro, sem imprimir a chave. Custa uma fração de centavo.
+
+**Verificação:** a integração é coberta por testes com respostas simuladas (`tests/test_gemini.py`: formato do pedido, chave fora da URL/log, status
+incompleto, erros HTTP, timeout, tokens e custo). **Chamadas reais ao Gemini não foram executadas pelo desenvolvimento** (não há chave aqui):
+rode o diagnóstico acima em produção para confirmar com a sua chave.
 
 ## Como adicionar um fornecedor real
 1. Criar `app/ai/providers/<nome>.py` com `name` e `complete(request) -> LLMResponse` (traduzir timeout →
