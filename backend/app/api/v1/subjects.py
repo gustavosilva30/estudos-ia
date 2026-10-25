@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.ai.profiles import CATEGORIES
 from app.core.db import get_db
 from app.core.deps import current_auth
 from app.repositories import library as repo
@@ -25,6 +26,12 @@ def _subject_out(subject, lesson_count: int) -> SubjectOut:
     out = SubjectOut.model_validate(subject)
     out.lesson_count = lesson_count
     return out
+
+
+@router.get("/subject-categories")
+def subject_categories(ctx: AuthContext = Depends(current_auth)):
+    """Áreas de conhecimento que a pessoa pode escolher para uma matéria (a IA se adapta a cada uma)."""
+    return [{"id": c.id, "label": c.label, "description": c.description} for c in CATEGORIES.values()]
 
 
 @router.get("/subjects", response_model=Page[SubjectOut])

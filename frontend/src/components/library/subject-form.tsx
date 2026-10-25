@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Alert, Button, Field } from "@/components/ui/primitives";
-import { Modal, Textarea } from "@/components/ui/forms";
+import { Modal, Select, Textarea } from "@/components/ui/forms";
 import { api } from "@/lib/api";
+import { useCategories } from "@/lib/use-categories";
 import { errorMessage } from "@/lib/use-api";
 import type { Subject } from "@/lib/types";
 
@@ -29,6 +30,9 @@ function SubjectForm({ subject, onClose, onSaved }: Omit<Props, "open">) {
   const [name, setName] = useState(subject?.name ?? "");
   const [color, setColor] = useState<string | null>(subject?.color ?? SUBJECT_COLORS[0]);
   const [description, setDescription] = useState(subject?.description ?? "");
+  const [category, setCategory] = useState(subject?.category ?? "outro");
+  const { categories } = useCategories();
+  const selected = categories.find((c) => c.id === category);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -37,7 +41,7 @@ function SubjectForm({ subject, onClose, onSaved }: Omit<Props, "open">) {
     setError(null);
     setBusy(true);
     try {
-      const body = { name: name.trim(), color, description: description.trim() || null };
+      const body = { name: name.trim(), color, description: description.trim() || null, category };
       const saved = subject
         ? await api<Subject>(`/subjects/${subject.id}`, { method: "PATCH", body })
         : await api<Subject>("/subjects", { method: "POST", body });
@@ -52,6 +56,30 @@ function SubjectForm({ subject, onClose, onSaved }: Omit<Props, "open">) {
     <form onSubmit={submit} className="space-y-4">
       {error && <Alert>{error}</Alert>}
       <Field label="Nome" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      <div className="space-y-1.5">
+        <Select
+          label="Área de conhecimento"
+          value={category}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCategory(next);
+            // Matéria nova e sem nome ainda: sugere o nome da área escolhida.
+            if (!subject && !name.trim() && next !== "outro") {
+              setName(categories.find((c) => c.id === next)?.label ?? "");
+            }
+          }}
+        >
+          {categories.length === 0 && <option value={category}>Carregando…</option>}
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
+        <p className="text-xs text-muted">
+          {selected?.description} A IA ajusta o jeito de resumir, explicar e resolver conforme a área.
+        </p>
+      </div>
       <fieldset>
         <legend className="mb-1.5 text-sm font-medium">Cor</legend>
         <div className="flex flex-wrap gap-2">

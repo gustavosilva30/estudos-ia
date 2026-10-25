@@ -9,6 +9,7 @@ from app.core.db import get_db
 from app.core.deps import current_auth
 from app.repositories import library as repo
 from app.schemas.library import (
+    AttachmentOut,
     LessonDetail,
     LessonIn,
     LessonListItem,
@@ -40,6 +41,7 @@ def _detail(parts: dict) -> LessonDetail:
         **LessonOut.model_validate(parts["lesson"]).model_dump(),
         materials=[MaterialOut.model_validate(m) for m in parts["materials"]],
         notes=[NoteOut.model_validate(n) for n in parts["notes"]],
+        attachments=[AttachmentOut.model_validate(a) for a in parts["attachments"]],
     )
 
 

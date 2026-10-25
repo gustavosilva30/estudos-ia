@@ -39,6 +39,21 @@ barreira; a principal continua sendo o backend, que filtra todas as consultas pe
 `ai_generations`, `ai_usage_logs`, `summaries`, `summary_versions` — ver [ia.md](ia.md).
 `summaries.generation_id` usa `ON DELETE SET NULL (generation_id)` (PostgreSQL 15+) para preservar `user_id`.
 
+## Tabelas e mudanças da E8 (migration 0003)
+- `subjects.category` (texto, padrão `outro`): área de conhecimento (Matemática, Física...). Validada na aplicação
+  (`app/ai/profiles.py`), sem `CHECK`, para a lista poder crescer sem migration.
+- `attachments`: imagens enviadas (bytes em `BYTEA`, coluna carregada só sob demanda). Pertencem a uma **aula**
+  (FK composta `(lesson_id, user_id)`, cascata). Únicas por `(user_id, lesson_id, sha256)`. `CHECK` de tipo
+  (`image/jpeg|png|webp`) e tamanho > 0.
+- `ai_generations.material_id` agora aceita `NULL` e há `attachment_id` (FK composta, cascata). `CHECK`
+  `num_nonnulls(material_id, attachment_id) = 1`: a origem é **um texto OU uma imagem**. Nova chave única de anti-duplicação
+  para imagens.
+- `source_materials.origin` aceita também `image` (texto transcrito de uma imagem e revisado pelo usuário).
+- Excluir a imagem apaga as gerações dela; **resumos já salvos permanecem** (`summaries.generation_id` vira NULL).
+- Atenção ao backup: as imagens ficam no PostgreSQL, então aumentam o tamanho do banco e do `pg_dump` (limite de 200 MB por usuário).
+
+SQL equivalente (para aplicar à mão): `infra/sql/0003-imagens-e-categorias.sql` (parte da versão 0002, que já estava aplicada).
+
 ## Tabelas planejadas (Fase 3)
 `questions`, `flashcards`, `study_sessions`, `review_schedule`.
 

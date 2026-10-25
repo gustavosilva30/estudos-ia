@@ -54,3 +54,16 @@ Texto vazio ou só com espaços é recusado (422); o conteúdo original é salvo
 **isolamento entre usuários** — outro usuário não consegue listar, pesquisar, ler, alterar, excluir nem *referenciar*
 (em criações e movimentações) matérias, pastas, aulas, textos e anotações; `user_id` enviado no corpo é ignorado; e os dados
 da vítima permanecem intactos após as tentativas.
+
+## Imagens e categorias (E8)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/subject-categories` | Áreas de conhecimento disponíveis (`id`, `label`, `description`) |
+| POST/PATCH | `/api/v1/subjects` · `/subjects/{id}` | Aceitam `category` (padrão `outro`; valor desconhecido → 422) |
+| POST | `/api/v1/lessons/{id}/attachments` | Envio multipart (`file`): PNG/JPEG/WebP até `MAX_UPLOAD_BYTES`; devolve só metadados |
+| GET | `/api/v1/attachments/{id}/content` | A imagem (só o dono; cabeçalhos seguros) |
+| DELETE | `/api/v1/attachments/{id}` | Exclui a imagem e as gerações feitas a partir dela |
+| POST | `/api/v1/ai/generate` | Agora aceita `attachment_id` **ou** `material_id` (exatamente um) |
+| POST | `/api/v1/ai/generations/{id}/save-as-material` | Transcrição de imagem → texto original da aula (aceita `content` revisado) |
+
+`GET /api/v1/lessons/{id}` passa a incluir `attachments` (metadados). `GET /api/v1/ai/operations` informa as `inputs` aceitas por cada operação.

@@ -9,6 +9,7 @@ Referência: https://ai.google.dev/api/interactions-api
 Nada do conteúdo do usuário nem da resposta é registrado em log.
 """
 
+import base64
 import logging
 from typing import Any
 
@@ -88,9 +89,16 @@ class GeminiProvider:
         config: dict[str, Any] = {"max_output_tokens": request.max_output_tokens}
         if self._thinking_level:
             config["thinking_level"] = self._thinking_level
+        if request.images:  # texto primeiro, depois as imagens (recomendação do Google)
+            input_value: Any = [{"type": "text", "text": request.user}] + [
+                {"type": "image", "data": base64.b64encode(image.data).decode("ascii"), "mime_type": image.mime_type}
+                for image in request.images
+            ]
+        else:
+            input_value = request.user
         return {
-            "model": self.model,
-            "input": request.user,
+            "model": request.model or self.model,
+            "input": input_value,
             "system_instruction": request.system,
             "response_format": {
                 "type": "text",
@@ -117,7 +125,7 @@ class GeminiProvider:
 
         if response.status_code >= 400:
             raise self._http_error(response)
-        return self._parse(response)
+        return self._parse(response, request.model or self.model)
 
     # ------------------------------------------------------------------
     def _http_error(self, response: httpx.Response) -> ProviderError:
@@ -144,7 +152,7 @@ class GeminiProvider:
         # Repetir não resolve.
         return ProviderError(f"Gemini HTTP {code}", detail)
 
-    def _parse(self, response: httpx.Response) -> LLMResponse:
+    def _parse(self, response: httpx.Response, requested_model: str) -> LLMResponse:
         try:
             data = response.json()
         except ValueError as exc:
@@ -180,7 +188,7 @@ class GeminiProvider:
 
         return LLMResponse(
             text="".join(texts),
-            model=str(data.get("model") or self.model),
+            model=str(data.get("model") or requested_model),
             input_tokens=tokens_in,
             output_tokens=tokens_out,
         )

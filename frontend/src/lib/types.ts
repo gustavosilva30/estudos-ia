@@ -83,6 +83,7 @@ export interface Subject {
   color: string | null;
   description: string | null;
   is_archived: boolean;
+  category: string;
   lesson_count: number;
   created_at: string;
   updated_at: string;
@@ -97,12 +98,28 @@ export interface Folder {
   updated_at: string;
 }
 
+export interface Attachment {
+  id: string;
+  lesson_id: string;
+  mime_type: string;
+  width: number;
+  height: number;
+  size_bytes: number;
+  created_at: string;
+}
+
+export interface SubjectCategory {
+  id: string;
+  label: string;
+  description: string;
+}
+
 export interface Material {
   id: string;
   lesson_id: string;
   content: string;
   content_hash: string;
-  origin: "typed" | "pasted";
+  origin: "typed" | "pasted" | "image";
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +144,7 @@ export interface LessonDetail {
   updated_at: string;
   materials: Material[];
   notes: Note[];
+  attachments: Attachment[];
 }
 
 export interface SummaryItem {
@@ -158,6 +176,7 @@ export interface AiOperation {
   label: string;
   description: string;
   supports_detail: boolean;
+  inputs: ("material" | "attachment")[];
 }
 
 export interface AiOperations {
@@ -167,13 +186,16 @@ export interface AiOperations {
 
 export interface Generation {
   id: string;
-  material_id: string;
+  material_id: string | null;
+  attachment_id: string | null;
   lesson_id: string;
   operation: string;
   operation_label: string;
   detail_level: string;
   provider: string;
   model: string;
+  /** Resultado estruturado (cada operação tem seus campos; ex.: `text` na transcrição de imagem). */
+  result: Record<string, unknown>;
   markdown: string;
   input_tokens: number;
   output_tokens: number;

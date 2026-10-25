@@ -68,13 +68,15 @@ function messageFor(status: number, data: unknown): string {
 interface Options {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  /** Envio de arquivo (multipart). O navegador define o Content-Type com o separador correto. */
+  form?: FormData;
   signal?: AbortSignal;
 }
 
 export async function api<T>(path: string, options: Options = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.body !== undefined && !options.form) headers["Content-Type"] = "application/json";
   if (method !== "GET" && csrfToken) headers["X-CSRF-Token"] = csrfToken;
 
   let response: Response;
@@ -82,7 +84,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     response = await fetch(`/api/v1${path}`, {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       credentials: "same-origin",
       signal: options.signal,
     });

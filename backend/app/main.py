@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.ai.providers import build_provider
 from app.api.v1 import ai as ai_api
+from app.api.v1 import attachments as attachments_api
 from app.api.v1 import auth as auth_api
 from app.api.v1 import dashboard as dashboard_api
 from app.api.v1 import lessons as lessons_api
@@ -47,7 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def protections(request: Request, call_next):
         length = request.headers.get("content-length")
-        if length and length.isdigit() and int(length) > settings.max_body_bytes:
+        # Só o envio de imagem aceita corpo maior (multipart tem uma pequena sobra além do arquivo).
+        is_upload = request.method == "POST" and request.url.path.endswith("/attachments")
+        limit = settings.max_upload_bytes + 200_000 if is_upload else settings.max_body_bytes
+        if length and length.isdigit() and int(length) > limit:
             return JSONResponse({"detail": "Requisição grande demais."}, status_code=413)
         # Defesa extra contra CSRF: requisições que alteram dados e vêm de outra origem são recusadas.
         origin = request.headers.get("origin")
@@ -83,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(summaries_api.router)
     app.include_router(dashboard_api.router)
     app.include_router(search_api.router)
+    app.include_router(attachments_api.router)
     return app
 
 

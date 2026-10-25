@@ -6,6 +6,8 @@
  *   falas muito longas, então cada trecho vira uma fala separada.
  */
 
+import { latexToSpeech } from "./math";
+
 const END_PUNCTUATION = /[.!?…:;]["”')\]]*$/;
 
 function endWithPause(line: string): string {
@@ -17,6 +19,9 @@ export function markdownToSpeech(markdown: string): string {
   const text = markdown
     .replace(/\r\n?/g, "\n")
     .replace(/```[\s\S]*?```/g, " ") // blocos de código não fazem sentido falados
+    .replace(/\bR\$\s?(\d+(?:[.,]\d+)*)/g, "$1 reais") // dinheiro antes de tratar fórmulas ($...$)
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_m, tex: string) => ` ${latexToSpeech(tex)} `) // fórmulas em destaque
+    .replace(/\$([^$\n]+?)\$/g, (_m, tex: string) => ` ${latexToSpeech(tex)} `) // fórmulas no texto
     .replace(/~~~[\s\S]*?~~~/g, " ")
     .replace(/<[^>\n]+>/g, " ") // tags HTML
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1") // imagens -> texto alternativo

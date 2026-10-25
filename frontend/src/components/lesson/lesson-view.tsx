@@ -11,17 +11,20 @@ import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { errorMessage, useApi } from "@/lib/use-api";
 import type { Folder, LessonDetail, Page, Subject } from "@/lib/types";
+import { useCategories } from "@/lib/use-categories";
 import { AiPanel } from "./ai-panel";
+import { ImagesPanel } from "./images-panel";
 import { MaterialsPanel } from "./materials-panel";
 import { NotesPanel } from "./notes-panel";
 import { SummariesPanel } from "./summaries-panel";
 
-type Tab = "texto" | "anotacoes" | "ia" | "resumos";
+type Tab = "texto" | "anotacoes" | "imagens" | "ia" | "resumos";
 
 export function LessonView({ id }: { id: string }) {
   const router = useRouter();
   const lesson = useApi<LessonDetail>(`/lessons/${id}`);
   const subject = useApi<Subject>(lesson.data ? `/subjects/${lesson.data.subject_id}` : null);
+  const { labelOf } = useCategories();
   const [tab, setTab] = useState<Tab>("texto");
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -40,6 +43,7 @@ export function LessonView({ id }: { id: string }) {
   }
   if (!lesson.data) return <Skeleton className="h-48" />;
   const l = lesson.data;
+  const categoryLabel = labelOf(subject.data?.category);
 
   async function run(action: () => Promise<void>) {
     setError(null);
@@ -56,6 +60,7 @@ export function LessonView({ id }: { id: string }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "texto", label: `Texto original (${l.materials.length})` },
     { id: "anotacoes", label: `Anotações (${l.notes.length})` },
+    { id: "imagens", label: `Imagens (${l.attachments.length})` },
     { id: "ia", label: "IA" },
     { id: "resumos", label: "Resumos" },
   ];
@@ -127,7 +132,16 @@ export function LessonView({ id }: { id: string }) {
       <div role="tabpanel">
         {tab === "texto" && <MaterialsPanel lessonId={l.id} materials={l.materials} onChanged={lesson.reload} />}
         {tab === "anotacoes" && <NotesPanel lessonId={l.id} notes={l.notes} onChanged={lesson.reload} />}
-        {tab === "ia" && <AiPanel materials={l.materials} />}
+        {tab === "imagens" && (
+          <ImagesPanel
+            lessonId={l.id}
+            attachments={l.attachments}
+            categoryLabel={categoryLabel}
+            onChanged={lesson.reload}
+            onMaterialSaved={lesson.reload}
+          />
+        )}
+        {tab === "ia" && <AiPanel materials={l.materials} categoryLabel={categoryLabel} />}
         {tab === "resumos" && <SummariesPanel lessonId={l.id} />}
       </div>
 

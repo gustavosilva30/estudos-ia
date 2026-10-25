@@ -6,12 +6,14 @@ import { useState } from "react";
 import { Alert, Button, Card, Skeleton } from "@/components/ui/primitives";
 import { Badge, EmptyState, PageHeader, SubjectDot } from "@/components/ui/forms";
 import { PlusIcon } from "@/components/ui/icons";
+import { useCategories } from "@/lib/use-categories";
 import { useApi } from "@/lib/use-api";
 import type { Page, Subject } from "@/lib/types";
 import { SubjectFormModal } from "./subject-form";
 
 export function SubjectsView() {
   const router = useRouter();
+  const { labelOf } = useCategories();
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
   const { data, error, loading, reload } = useApi<Page<Subject>>(
@@ -70,6 +72,7 @@ export function SubjectsView() {
                   <div className="flex items-center gap-2">
                     <SubjectDot color={s.color} />
                     <h2 className="truncate font-semibold">{s.name}</h2>
+                    {s.category !== "outro" && <Badge tone="primary">{labelOf(s.category)}</Badge>}
                     {s.is_archived && <Badge>Arquivada</Badge>}
                   </div>
                   {s.description && <p className="mt-2 line-clamp-2 text-sm text-muted">{s.description}</p>}

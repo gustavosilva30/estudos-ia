@@ -70,7 +70,7 @@ def update_subject(
 ) -> tuple[Subject, int]:
     subject = _owned(db, Subject, user_id, subject_id, "Matéria")
     for field, value in body.model_dump(exclude_unset=True).items():
-        if value is None and field in ("name", "is_archived"):
+        if value is None and field in ("name", "is_archived", "category"):
             continue
         setattr(subject, field, value)
     _commit(db, "Você já tem uma matéria com este nome.")
@@ -198,6 +198,7 @@ def lesson_detail(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID) -> dict
         "lesson": lesson,
         "materials": repo.lesson_materials(db, user_id, lesson.id),
         "notes": repo.lesson_notes(db, user_id, lesson.id),
+        "attachments": repo.lesson_attachments(db, user_id, lesson.id),
     }
 
 
@@ -210,11 +211,17 @@ def _touch(lesson: Lesson) -> None:
 # ---------- textos originais ----------
 
 def add_material(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID, body: MaterialIn) -> SourceMaterial:
+    return add_material_text(db, user_id, lesson_id, body.content, body.origin)
+
+
+def add_material_text(
+    db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID, content: str, origin: str
+) -> SourceMaterial:
+    """origin: typed | pasted | image (texto extraído de uma imagem, já revisado pelo usuário)."""
     lesson = _owned(db, Lesson, user_id, lesson_id, "Aula")
-    _require_text(body.content)
+    _require_text(content)
     material = SourceMaterial(
-        user_id=user_id, lesson_id=lesson.id, content=body.content,
-        content_hash=content_hash(body.content), origin=body.origin,
+        user_id=user_id, lesson_id=lesson.id, content=content, content_hash=content_hash(content), origin=origin,
     )
     db.add(material)
     _touch(lesson)

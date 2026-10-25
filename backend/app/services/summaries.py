@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.ai.operations import OPERATIONS
 from app.ai.render import render_markdown
 from app.core.errors import AppError, NotFound
-from app.models import AIGeneration, Lesson, SourceMaterial, Summary, SummaryVersion
+from app.models import AIGeneration, Attachment, Lesson, SourceMaterial, Summary, SummaryVersion
 from app.repositories import library as repo
 from app.schemas.ai import SummaryCreate, SummaryUpdate
 
@@ -58,11 +58,14 @@ def save_generation(db: Session, user_id: uuid.UUID, generation_id: uuid.UUID, t
     gen = repo.get_owned(db, AIGeneration, user_id, generation_id)
     if gen is None:
         raise NotFound("Geração não encontrada.")
-    material = repo.get_owned(db, SourceMaterial, user_id, gen.material_id)
+    if gen.material_id is not None:
+        lesson_id = repo.get_owned(db, SourceMaterial, user_id, gen.material_id).lesson_id
+    else:
+        lesson_id = repo.get_owned(db, Attachment, user_id, gen.attachment_id).lesson_id
     op = OPERATIONS[gen.operation]
     result = op.result_model.model_validate(gen.result)
     return _new(
-        db, user_id, material.lesson_id, gen.operation, title or result.title,
+        db, user_id, lesson_id, gen.operation, title or result.title,
         render_markdown(result), gen.id, "ai",
     )
 

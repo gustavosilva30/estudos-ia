@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.models import Folder, Lesson, Note, SourceMaterial, Subject, User
+from app.models import AIGeneration, Attachment, Folder, Lesson, Note, SourceMaterial, Subject, User
 
 
 def make_user(db, email="a@example.com"):
@@ -129,3 +129,107 @@ def test_pesquisa_em_portugues_por_titulo_e_conteudo(db):
     )
     assert por_titulo == 1
     assert por_conteudo == 1
+
+
+# ---------- imagens, categoria e origem das gerações (migration 0003) ----------
+
+def make_attachment(db, user, lesson, sha="a" * 64, **over):
+    values = {
+        "user_id": user.id, "lesson_id": lesson.id, "mime_type": "image/png", "width": 10, "height": 10,
+        "size_bytes": 100, "sha256": sha, "data": b"bytes-da-imagem",
+    }
+    values.update(over)
+    a = Attachment(**values)
+    db.add(a)
+    db.flush()
+    return a
+
+
+def make_generation(db, user, **origin):
+    g = AIGeneration(
+        user_id=user.id, operation="resumo_completo", detail_level="medio", input_hash="h" * 64,
+        provider="fake", model="fake-1", result={}, **origin,
+    )
+    db.add(g)
+    db.flush()
+    return g
+
+
+def test_materia_nasce_com_categoria_outro(db):
+    u = make_user(db)
+    s, _ = make_lesson(db, u)
+    db.refresh(s)
+    assert s.category == "outro"
+
+
+def test_texto_aceita_origem_image_e_recusa_desconhecida(db):
+    u = make_user(db)
+    _, lesson = make_lesson(db, u)
+    db.add(SourceMaterial(user_id=u.id, lesson_id=lesson.id, content="x", content_hash="h", origin="image"))
+    db.flush()
+    db.add(SourceMaterial(user_id=u.id, lesson_id=lesson.id, content="y", content_hash="h2", origin="audio"))
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_anexo_nao_pode_ser_de_aula_de_outro_usuario(db):
+    a, b = make_user(db, "a@example.com"), make_user(db, "b@example.com")
+    _, lesson_b = make_lesson(db, b)
+    with pytest.raises(IntegrityError):
+        make_attachment(db, a, lesson_b)
+
+
+@pytest.mark.parametrize(
+    "over", [{"mime_type": "image/svg+xml"}, {"mime_type": "application/pdf"}, {"size_bytes": 0}, {"kind": "video"}]
+)
+def test_anexo_valida_tipo_e_tamanho(db, over):
+    u = make_user(db)
+    _, lesson = make_lesson(db, u)
+    with pytest.raises(IntegrityError):
+        make_attachment(db, u, lesson, **over)
+
+
+def test_mesma_imagem_nao_repete_na_mesma_aula_mas_pode_em_outra(db):
+    u = make_user(db)
+    s, lesson = make_lesson(db, u)
+    other = Lesson(user_id=u.id, subject_id=s.id, title="Outra")
+    db.add(other)
+    db.flush()
+    make_attachment(db, u, lesson)
+    make_attachment(db, u, other)  # outra aula: permitido
+    with pytest.raises(IntegrityError):
+        make_attachment(db, u, lesson)
+
+
+def test_geracao_exige_exatamente_uma_origem(db):
+    u = make_user(db)
+    _, lesson = make_lesson(db, u)
+    material = SourceMaterial(user_id=u.id, lesson_id=lesson.id, content="x", content_hash="h")
+    db.add(material)
+    db.flush()
+    att = make_attachment(db, u, lesson)
+
+    assert make_generation(db, u, material_id=material.id).attachment_id is None
+    assert make_generation(db, u, attachment_id=att.id).material_id is None
+
+    for origin in ({}, {"material_id": material.id, "attachment_id": att.id}):
+        with pytest.raises(IntegrityError), db.begin_nested():
+            make_generation(db, u, **origin)
+
+
+def test_geracao_nao_usa_imagem_de_outro_usuario(db):
+    a, b = make_user(db, "a@example.com"), make_user(db, "b@example.com")
+    _, lesson_b = make_lesson(db, b)
+    att_b = make_attachment(db, b, lesson_b)
+    with pytest.raises(IntegrityError):
+        make_generation(db, a, attachment_id=att_b.id)
+
+
+def test_excluir_aula_apaga_anexos_e_geracoes_deles(db):
+    u = make_user(db)
+    _, lesson = make_lesson(db, u)
+    att = make_attachment(db, u, lesson)
+    make_generation(db, u, attachment_id=att.id)
+    db.execute(text("DELETE FROM lessons WHERE id = :i"), {"i": lesson.id})
+    assert db.scalar(text("SELECT count(*) FROM attachments")) == 0
+    assert db.scalar(text("SELECT count(*) FROM ai_generations")) == 0

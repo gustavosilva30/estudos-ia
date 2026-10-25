@@ -11,18 +11,35 @@ from datetime import UTC, datetime
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from app.ai.cost import estimate_cost_usd, estimate_tokens
-from app.ai.operations import OPERATIONS, Operation, build_system_prompt, build_user_message
-from app.ai.provider import LLMProvider, LLMRequest, ProviderError
+from app.ai.operations import (
+    OPERATIONS,
+    Operation,
+    build_image_user_message,
+    build_system_prompt,
+    build_user_message,
+)
+from app.ai.profiles import DEFAULT_CATEGORY, get_profile
+from app.ai.provider import ImagePart, LLMProvider, LLMRequest, ProviderError
 from app.config import Settings
 from app.core.errors import AppError, NotFound, TooManyRequests
 from app.core.rate_limit import RateLimiter
-from app.models import AIGeneration, AIUsageLog, SourceMaterial, UserPreference
+from app.models import (
+    AIGeneration,
+    AIUsageLog,
+    Attachment,
+    Lesson,
+    SourceMaterial,
+    Subject,
+    UserPreference,
+)
 from app.repositories import library as repo
 
 log = logging.getLogger("estudos.ai")
+
+IMAGE_TOKEN_ESTIMATE = 1500  # só para estimar quando o provedor não informa os tokens de entrada
 
 _ERROR_MESSAGES = {
     "timeout": (504, "A IA demorou demais para responder. Tente novamente."),
@@ -38,11 +55,6 @@ def get_operation(operation: str) -> Operation:
     return op
 
 
-def input_hash(material: SourceMaterial, op: Operation, detail: str, provider: LLMProvider, settings: Settings) -> str:
-    raw = f"{material.content_hash}|{op.id}|{detail}|{op.prompt_version}|{provider.name}|{settings.ai_model}"
-    return hashlib.sha256(raw.encode()).hexdigest()
-
-
 def get_generation(db: Session, user_id: uuid.UUID, generation_id: uuid.UUID) -> AIGeneration:
     gen = repo.get_owned(db, AIGeneration, user_id, generation_id)
     if gen is None:
@@ -51,11 +63,14 @@ def get_generation(db: Session, user_id: uuid.UUID, generation_id: uuid.UUID) ->
 
 
 def list_generations(
-    db: Session, user_id: uuid.UUID, material_id: uuid.UUID | None, page: int, page_size: int
+    db: Session, user_id: uuid.UUID, material_id: uuid.UUID | None, page: int, page_size: int,
+    attachment_id: uuid.UUID | None = None,
 ) -> tuple[list[AIGeneration], int]:
     where = [AIGeneration.user_id == user_id]
     if material_id:
         where.append(AIGeneration.material_id == material_id)
+    if attachment_id:
+        where.append(AIGeneration.attachment_id == attachment_id)
     total = db.scalar(select(func.count()).select_from(AIGeneration).where(*where)) or 0
     rows = db.scalars(
         select(AIGeneration).where(*where).order_by(AIGeneration.created_at.desc(), AIGeneration.id)
@@ -111,25 +126,26 @@ def _enforce_quotas(db: Session, settings: Settings, limiter: RateLimiter, user_
 
 def _log_usage(
     db: Session, settings: Settings, provider: LLMProvider, model: str, user_id: uuid.UUID, op: Operation,
-    status: str, tokens_in: int, tokens_out: int, started: float,
+    status: str, tokens_in: int, tokens_out: int, started: float, strong: bool,
 ) -> None:
     db.add(AIUsageLog(
         user_id=user_id, operation=op.id, provider=provider.name, model=model, status=status,
         input_tokens=tokens_in, output_tokens=tokens_out,
-        estimated_cost_usd=estimate_cost_usd(settings, tokens_in, tokens_out),
+        estimated_cost_usd=estimate_cost_usd(settings, tokens_in, tokens_out, strong=strong),
         duration_ms=int((time.monotonic() - started) * 1000),
     ))
     db.commit()
-    # Só metadados: nunca o conteúdo do usuário nem a resposta.
+    # Só metadados: nunca o conteúdo do usuário, as imagens nem a resposta.
     log.info("ia_chamada op=%s status=%s tokens_in=%s tokens_out=%s", op.id, status, tokens_in, tokens_out)
 
 
 def _call_with_retries(
     db: Session, settings: Settings, provider: LLMProvider, user_id: uuid.UUID, op: Operation, request: LLMRequest,
+    *, model: str, strong: bool,
 ):
     """Chama o provedor; repete só falhas transitórias/resposta inválida; valida o JSON recebido."""
     attempts = 1 + max(0, settings.ai_max_retries)
-    est_in = estimate_tokens(request.system + request.user)
+    est_in = estimate_tokens(request.system + request.user) + IMAGE_TOKEN_ESTIMATE * len(request.images)
     last_status = "error"
     for attempt in range(attempts):
         started = time.monotonic()
@@ -137,7 +153,7 @@ def _call_with_retries(
             response = provider.complete(request)
         except ProviderError as exc:
             last_status = exc.status
-            _log_usage(db, settings, provider, settings.ai_model, user_id, op, exc.status, est_in, 0, started)
+            _log_usage(db, settings, provider, model, user_id, op, exc.status, est_in, 0, started, strong)
             if exc.retryable and attempt < attempts - 1:
                 time.sleep(settings.ai_retry_backoff_seconds * (2**attempt))
                 continue
@@ -148,11 +164,11 @@ def _call_with_retries(
             result = op.result_model.model_validate(json.loads(response.text))
         except (ValueError, ValidationError):
             last_status = "invalid_output"
-            _log_usage(db, settings, provider, response.model, user_id, op, "invalid_output", tokens_in, tokens_out, started)
+            _log_usage(db, settings, provider, response.model, user_id, op, "invalid_output", tokens_in, tokens_out, started, strong)
             if attempt < attempts - 1:
                 continue
             break
-        _log_usage(db, settings, provider, response.model, user_id, op, "ok", tokens_in, tokens_out, started)
+        _log_usage(db, settings, provider, response.model, user_id, op, "ok", tokens_in, tokens_out, started, strong)
         return result, response.model, tokens_in, tokens_out
     if last_status == "invalid_output":
         raise AppError(502, "A IA devolveu uma resposta fora do formato esperado. Tente novamente.")
@@ -160,27 +176,69 @@ def _call_with_retries(
     raise AppError(code, message)
 
 
+def _category_of_lesson(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID) -> str:
+    return db.scalar(
+        select(Subject.category)
+        .join(Lesson, (Lesson.subject_id == Subject.id) & (Lesson.user_id == Subject.user_id))
+        .where(Lesson.id == lesson_id, Lesson.user_id == user_id)
+    ) or DEFAULT_CATEGORY
+
+
 def generate(
     db: Session, settings: Settings, provider: LLMProvider, limiter: RateLimiter, *,
-    user_id: uuid.UUID, material_id: uuid.UUID, operation: str, detail_level: str | None, force: bool,
+    user_id: uuid.UUID, operation: str, detail_level: str | None, force: bool,
+    material_id: uuid.UUID | None = None, attachment_id: uuid.UUID | None = None,
 ) -> tuple[AIGeneration, bool]:
-    """Devolve (geração, veio_do_cache). Chamadas repetidas com o mesmo texto não custam nada."""
+    """Devolve (geração, veio_do_cache). Chamadas repetidas com a mesma origem não custam nada.
+    A origem é um texto salvo (material_id) OU uma imagem (attachment_id)."""
     op = get_operation(operation)
-    material = repo.get_owned(db, SourceMaterial, user_id, material_id)
-    if material is None:
-        raise NotFound("Texto não encontrado.")
-    if len(material.content) > settings.ai_max_input_chars:
+    if (material_id is None) == (attachment_id is None):
+        raise AppError(422, "Informe o texto ou a imagem a usar (apenas um dos dois).")
+    source = "material" if material_id is not None else "attachment"
+    if source not in op.inputs:
         raise AppError(
-            413, f"O texto tem mais de {settings.ai_max_input_chars} caracteres, limite para uso com IA. Divida o conteúdo em partes."
+            422,
+            "Esta operação trabalha com uma imagem enviada." if source == "material"
+            else "Esta operação trabalha com texto. Use primeiro 'Imagem para texto' ou 'Resolver problema'.",
         )
+
+    images: tuple[ImagePart, ...] = ()
+    if material_id is not None:
+        material = repo.get_owned(db, SourceMaterial, user_id, material_id)
+        if material is None:
+            raise NotFound("Texto não encontrado.")
+        if len(material.content) > settings.ai_max_input_chars:
+            raise AppError(
+                413, f"O texto tem mais de {settings.ai_max_input_chars} caracteres, limite para uso com IA. Divida o conteúdo em partes."
+            )
+        lesson_id, content_key = material.lesson_id, material.content_hash
+        user_message = build_user_message(material.content)
+    else:
+        attachment = db.scalar(
+            select(Attachment).options(undefer(Attachment.data))
+            .where(Attachment.id == attachment_id, Attachment.user_id == user_id)
+        )
+        if attachment is None:
+            raise NotFound("Imagem não encontrada.")
+        lesson_id, content_key = attachment.lesson_id, attachment.sha256
+        user_message = build_image_user_message(op)
+        images = (ImagePart(mime_type=attachment.mime_type, data=attachment.data),)
+
+    # A categoria da matéria muda o prompt (exceto na transcrição, que deve ser fiel em qualquer área).
+    profile = get_profile(_category_of_lesson(db, user_id, lesson_id)) if op.kind != "ocr" else None
+    strong = op.tier == "strong" and bool(settings.ai_model_strong)
+    model = settings.ai_model_strong if strong else settings.ai_model
+
     prefs = db.get(UserPreference, user_id)
     detail = op.normalize_detail(detail_level or (prefs.default_detail_level if prefs else None))
-    key = input_hash(material, op, detail, provider, settings)
+    raw_key = f"{content_key}|{op.id}|{detail}|{op.prompt_version}|{provider.name}|{model}|{profile.id if profile else '-'}"
+    key = hashlib.sha256(raw_key.encode()).hexdigest()
 
     def find_existing() -> AIGeneration | None:
+        origin = AIGeneration.material_id == material_id if material_id is not None else AIGeneration.attachment_id == attachment_id
         return db.scalar(select(AIGeneration).where(
-            AIGeneration.user_id == user_id, AIGeneration.material_id == material.id,
-            AIGeneration.operation == op.id, AIGeneration.detail_level == detail, AIGeneration.input_hash == key,
+            AIGeneration.user_id == user_id, origin, AIGeneration.operation == op.id,
+            AIGeneration.detail_level == detail, AIGeneration.input_hash == key,
         ))
 
     existing = find_existing()
@@ -190,26 +248,31 @@ def generate(
     _enforce_quotas(db, settings, limiter, user_id)
     request = LLMRequest(
         operation=op.id,
-        system=build_system_prompt(op, detail),
-        user=build_user_message(material.content),
+        system=build_system_prompt(op, detail, profile, has_image=bool(images)),
+        user=user_message,
         json_schema=op.result_model.model_json_schema(),
         max_output_tokens=min(settings.ai_max_output_tokens, op.max_output_tokens or settings.ai_max_output_tokens),
         timeout_seconds=settings.ai_timeout_seconds,
+        model=model,
+        images=images,
     )
-    result, model, tokens_in, tokens_out = _call_with_retries(db, settings, provider, user_id, op, request)
+    result, used_model, tokens_in, tokens_out = _call_with_retries(
+        db, settings, provider, user_id, op, request, model=model, strong=strong
+    )
 
     fields = {
-        "provider": provider.name, "model": model, "result": result.model_dump(),
+        "provider": provider.name, "model": used_model, "result": result.model_dump(),
         "input_tokens": tokens_in, "output_tokens": tokens_out,
-        "estimated_cost_usd": estimate_cost_usd(settings, tokens_in, tokens_out),
+        "estimated_cost_usd": estimate_cost_usd(settings, tokens_in, tokens_out, strong=strong),
     }
-    if existing is not None:  # regeneração explícita (force): substitui a geração, não o texto original
+    if existing is not None:  # regeneração explícita (force): substitui a geração, não o original
         for k, v in fields.items():
             setattr(existing, k, v)
         db.commit()
         return existing, False
     generation = AIGeneration(
-        user_id=user_id, material_id=material.id, operation=op.id, detail_level=detail, input_hash=key, **fields
+        user_id=user_id, material_id=material_id, attachment_id=attachment_id, operation=op.id,
+        detail_level=detail, input_hash=key, **fields,
     )
     db.add(generation)
     try:

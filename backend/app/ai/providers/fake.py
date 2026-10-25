@@ -12,6 +12,8 @@ from app.ai.provider import LLMRequest, LLMResponse
 
 
 def _material_from(request: LLMRequest) -> str:
+    if OPEN_TAG not in request.user:  # operações sobre imagem: não há texto do usuário
+        return ""
     start = request.user.find(OPEN_TAG) + len(OPEN_TAG)
     end = request.user.find(CLOSE_TAG)
     return request.user[start:end].strip()
@@ -36,14 +38,37 @@ class FakeProvider:
             item = self.queue.pop(0)
             if isinstance(item, BaseException):
                 raise item
-            return LLMResponse(text=item, model=self.model)
-        return LLMResponse(text=json.dumps(self._build(request), ensure_ascii=False), model=self.model)
+            return LLMResponse(text=item, model=request.model or self.model)
+        return LLMResponse(
+            text=json.dumps(self._build(request), ensure_ascii=False), model=request.model or self.model
+        )
 
     def _build(self, request: LLMRequest) -> dict:
+        op = request.operation
+        if op == "ocr_imagem":
+            return {
+                "title": "Imagem de teste",
+                "text": "Texto simulado da imagem (provedor de teste). $x^2 + 1 = 5$",
+                "limitations": ["Transcrição simulada pelo provedor de teste (FakeProvider)."],
+            }
+        if op == "resolver_problema":
+            statement = _material_from(request) or "Enunciado simulado da imagem: $x + 2 = 5$."
+            return {
+                "title": "Problema de teste",
+                "problem_statement": statement[:500],
+                "given": ["$x + 2 = 5$"],
+                "asked": ["O valor de $x$"],
+                "steps": [
+                    {"title": "Isolar x", "explanation": "Subtraia 2 dos dois lados.", "formula": "x = 5 - 2"},
+                    {"title": "Calcular", "explanation": "Faça a subtração.", "formula": "x = 3"},
+                ],
+                "final_answer": "$x = 3$",
+                "verification": "Substituindo: $3 + 2 = 5$.",
+                "limitations": ["Resolução simulada pelo provedor de teste (FakeProvider)."],
+            }
         s = _sentences(_material_from(request))
         title = s[0][:80]
         base = {"title": title, "limitations": ["Resposta gerada pelo provedor de teste (FakeProvider)."]}
-        op = request.operation
         if op in ("resumo_completo", "resumo_rapido"):
             return {**base, "sections": [{"heading": f"Parte {i + 1}", "content": x} for i, x in enumerate(s[:6])]}
         if op == "topicos_principais":

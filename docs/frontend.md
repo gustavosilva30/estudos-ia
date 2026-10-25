@@ -51,6 +51,15 @@ montagem automática de trechos do material, não um resumo real.
 - Rotas dinâmicas (`[id]`) seguem o padrão do Next 16 com `cacheComponents`: `params` (promise) dentro de `<Suspense>`; o menu também fica em `<Suspense>`
   (usa `usePathname`). As páginas da área logada declaram `export const instant = false` porque dependem da sessão (carregada no navegador).
 
+## Imagens, problemas e fórmulas (E8)
+- **Matéria:** o formulário tem **Área de conhecimento** (Matemática, Física...). A área aparece como etiqueta nas listas e ajusta a IA (ver [ia.md](ia.md)).
+- **Aba "Imagens (n)" da aula** (`components/lesson/images-panel.tsx`): enviar arquivo, **colar print (Ctrl+V)**, arrastar e soltar, ou **tirar foto** no celular.
+  Valida tipo/tamanho antes de enviar (HEIC não é aceito). Cada imagem tem **Extrair texto** e **Resolver problema** (com nível de detalhe), exibe o resultado abaixo e permite excluir (com confirmação).
+- **Imagem → texto:** a transcrição fica numa caixa **editável** (com pré-visualização das fórmulas); só ao clicar em *Salvar como texto original da aula* ela vira texto da aula (origem `image`).
+- **Resolver problema:** mostra enunciado, passo a passo, resposta e verificação, com o aviso de que a IA pode errar; pode ser lida em voz alta e salva como resumo editável.
+- **Fórmulas:** `components/markdown.tsx` usa `remark-math` + KaTeX (`trust: false`: sem links, imagens nem comandos perigosos); CSS em `katex/dist/katex.min.css`.
+- **Testes:** `images-panel.test.tsx` (envio multipart com CSRF, validações, colar/arrastar, extrair/resolver/salvar, excluir), `markdown.test.tsx` (KaTeX e segurança), `math.test.ts`.
+
 ## Leitura em voz alta
 Botão **Ouvir / Pausar / Continuar / Parar** (`components/read-aloud.tsx`) no editor de resumos (lê o conteúdo atual, inclusive
 alterações ainda não salvas, e o título), em cada **texto original** da aula e no **resultado da IA**.

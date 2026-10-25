@@ -4,6 +4,8 @@ from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.ai.profiles import CATEGORIES, DEFAULT_CATEGORY
+
 MAX_MATERIAL_CHARS = 100_000
 MAX_NOTE_CHARS = 20_000
 MAX_OBSERVATIONS_CHARS = 5_000
@@ -13,6 +15,12 @@ T = TypeVar("T")
 
 def _clean(v: str | None) -> str | None:
     return v.strip() if isinstance(v, str) else v
+
+
+def _known_category(v: str | None) -> str | None:
+    if v is not None and v not in CATEGORIES:
+        raise ValueError("Categoria desconhecida.")
+    return v
 
 
 class Page(BaseModel, Generic[T]):
@@ -28,8 +36,10 @@ class SubjectIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = Field(default=None, max_length=2000)
+    category: str = Field(default=DEFAULT_CATEGORY, max_length=30)
 
     _strip = field_validator("name", "description", mode="before")(_clean)
+    _category = field_validator("category")(_known_category)
 
 
 class SubjectUpdate(BaseModel):
@@ -37,8 +47,10 @@ class SubjectUpdate(BaseModel):
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = Field(default=None, max_length=2000)
     is_archived: bool | None = None
+    category: str | None = Field(default=None, max_length=30)
 
     _strip = field_validator("name", "description", mode="before")(_clean)
+    _category = field_validator("category")(_known_category)
 
 
 class SubjectOut(BaseModel):
@@ -49,6 +61,7 @@ class SubjectOut(BaseModel):
     color: str | None
     description: str | None
     is_archived: bool
+    category: str = DEFAULT_CATEGORY
     lesson_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -174,7 +187,20 @@ class LessonOut(BaseModel):
     updated_at: datetime
 
 
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    lesson_id: uuid.UUID
+    mime_type: str
+    width: int
+    height: int
+    size_bytes: int
+    created_at: datetime
+
+
 class LessonDetail(LessonOut):
     materials: list[MaterialOut]
     notes: list[NoteOut]
+    attachments: list[AttachmentOut] = []
 

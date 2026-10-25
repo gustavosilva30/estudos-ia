@@ -15,6 +15,7 @@ TEXTO = (
     "A clorofila absorve a luz. O produto principal é a glicose."
 )
 OPS = list(OPERATIONS)
+TEXT_OPS = [op_id for op_id, op in OPERATIONS.items() if "material" in op.inputs]  # as de imagem têm testes próprios
 
 
 def valid_summary(**extra):
@@ -59,7 +60,7 @@ def test_lista_de_operacoes(ana):
     assert rapido["supports_detail"] is False and r["max_input_chars"] > 0
 
 
-@pytest.mark.parametrize("operation", OPS)
+@pytest.mark.parametrize("operation", TEXT_OPS)
 def test_cada_operacao_gera_resultado_estruturado(ana, operation):
     _, m = material_de(ana)
     r = gerar(ana, m, operation, detail_level="medio")

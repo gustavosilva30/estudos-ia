@@ -10,6 +10,7 @@
 | E5 | Frontend base, tema, telas de autenticação, dashboard com dados reais | concluída — ver [frontend.md](frontend.md) |
 | E6 | Biblioteca, editor de resultados, versões, pesquisa global | concluída — ver [frontend.md](frontend.md) |
 | E7 | Endurecimento, deploy EasyPanel, backup/restauração | pendente |
+| E8 | Imagens (print/foto), imagem→texto (OCR), resolver problemas e IA por categoria de matéria | concluída e verificada (testes com banco e navegador) — falta só uma chamada real do Gemini com imagem; ver [ia.md](ia.md) |
 
 Fase 3 (aprendizado) e Fase 4 (expansão) conforme o plano aprovado. Fase 5: apenas `futuro-android.md`.
 

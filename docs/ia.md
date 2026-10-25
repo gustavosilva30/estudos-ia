@@ -126,6 +126,72 @@ Mostra provedor, modelo e `OK` (com tokens) ou o motivo do erro, sem imprimir a 
 incompleto, erros HTTP, timeout, tokens e custo). **Chamadas reais ao Gemini não foram executadas pelo desenvolvimento** (não há chave aqui):
 rode o diagnóstico acima em produção para confirmar com a sua chave.
 
+## Imagens, problemas e categorias de matéria (E8)
+
+### O que existe
+| Operação | Entrada | Modelo | Resultado |
+|---|---|---|---|
+| `ocr_imagem` — **Imagem para texto** | imagem | padrão | transcrição fiel (fórmulas em LaTeX); a pessoa revisa e salva como **texto original** da aula (origem `image`) |
+| `resolver_problema` — **Resolver problema** | imagem **ou** texto salvo | **forte** (`AI_MODEL_STRONG`) | enunciado transcrito, dados, o que se pede, passo a passo com fórmulas, resposta final e verificação; sempre com o aviso "pode conter erros" |
+
+As operações de estudo (resumos, tópicos etc.) continuam só com texto. A origem da geração é **um texto OU uma imagem** (nunca os dois).
+
+### Categorias de matéria (`app/ai/profiles.py`)
+Ao criar a matéria a pessoa escolhe a **área de conhecimento**: Matemática, Física, Química, Biologia, Ciências, Geografia, História,
+Ciências Humanas, Língua Portuguesa, Literatura, Línguas estrangeiras, Programação ou Outra (padrão). A categoria:
+- acrescenta orientações ao prompt das operações de estudo (ex.: História: ordem cronológica e *nunca inventar datas*; Matemática: preservar
+  fórmulas e escrever em LaTeX; Física: unidades) e ao de resolução de problemas (ex.: Física: dados com unidades e conferência dimensional);
+- **não afrouxa nenhuma regra**: usar só o material, não inventar, tratar o texto/imagem como dado não confiável;
+- entra na chave do cache: mudar a categoria da matéria gera uma nova resposta; a transcrição de imagem **não** depende da categoria (deve ser fiel em qualquer área).
+Para criar uma categoria nova, acrescente uma entrada em `CATEGORIES` (sem migration).
+
+### Segurança das imagens (`app/services/images.py`)
+- O conteúdo é **aberto e verificado com a Pillow**; nome do arquivo e `Content-Type` do navegador são ignorados. Aceita só PNG, JPEG e WebP
+  (SVG, GIF, PDF, HEIC e texto disfarçado de imagem são recusados).
+- A imagem é **sempre recodificada**: remove metadados (EXIF, **GPS**), aplica a rotação do celular, troca transparência por fundo branco, reduz para no máximo
+  2000 px e a um tamanho de ~1,5 MB; qualquer carga escondida depois da imagem é descartada.
+- Proteções: limite de 40 milhões de pixels (bomba de descompressão → 413), arquivo truncado/corrompido → 400, limite de 8 MB no envio
+  (`MAX_UPLOAD_BYTES`; só a rota de envio aceita corpo grande), 20 imagens por aula e ~200 MB por usuário.
+- Entrega: `GET /api/v1/attachments/{id}/content` exige login e checa o dono; `nosniff`, `Content-Security-Policy: sandbox` e cache **privado**. Imagem de outro usuário = 404.
+- Imagem repetida na mesma aula é reaproveitada (mesmo SHA-256). Excluir a imagem apaga as leituras/resoluções dela; resumos salvos permanecem.
+
+### Imagem também é entrada não confiável
+Texto escrito dentro da imagem pode tentar dar ordens à IA. Defesas: o prompt de sistema nunca contém nada digitado pelo usuário, a mensagem que acompanha a imagem é
+**fixa**, as regras mandam tratar a imagem como dado e registrar a tentativa em `limitations`, e a saída é JSON validado, sem ferramentas nem segredos no contexto. Não há garantia
+absoluta contra injeção de prompt em modelos reais.
+
+### Modelo mais forte e custo
+`AI_MODEL_STRONG` (ex.: `gemini-3.8-flash`) é usado só em operações marcadas `tier="strong"` (hoje, *Resolver problema*); vazio = usa `AI_MODEL`.
+Preços próprios em `AI_PRICE_INPUT_PER_MTOK_STRONG` / `AI_PRICE_OUTPUT_PER_MTOK_STRONG` (vazios = reaproveita os do modelo padrão). O modelo entra na chave do cache e
+no registro de uso. No Gemini, uma imagem de até 2000 px custa em torno de 1–2 mil tokens de entrada (a documentação do Google calcula por blocos de 768 px, 258 tokens cada).
+Sem tokens informados pelo provedor, a estimativa assume 1500 tokens por imagem.
+
+```
+AI_MODEL=gemini-3.5-flash-lite
+AI_MODEL_STRONG=gemini-3.8-flash
+AI_PRICE_INPUT_PER_MTOK=0.30        AI_PRICE_OUTPUT_PER_MTOK=2.50
+AI_PRICE_INPUT_PER_MTOK_STRONG=0.75 AI_PRICE_OUTPUT_PER_MTOK_STRONG=3.75   # até 31/12/2026; confira a tabela do Google
+AI_THINKING_LEVEL=low               # recomendado com o 3.8-flash (não aceita "minimal")
+AI_MAX_OUTPUT_TOKENS=4000
+```
+
+### Limitações e cuidados
+- **A IA pode errar**, principalmente em contas longas e em escrita à mão. A "verificação" do resultado é gerada pela própria IA: **não substitui conferir você mesmo**.
+- Texto ilegível é marcado `[ilegível]` e listado em "Limitações"; gráficos e figuras são só descritos, sem inventar valores.
+- Fórmulas usam LaTeX (`$...$`, `$$...$$`) e são desenhadas pelo KaTeX. Valores como `R$ 5` são protegidos para não virarem fórmula; um `$` solto antes de número, sem prefixo de moeda, ainda pode ser lido como fórmula.
+- A leitura em voz alta de fórmulas é uma aproximação (frações, potências, raízes, letras gregas e operadores comuns).
+- A imagem é enviada ao provedor de IA (Google) para ser lida: evite dados pessoais. No plano gratuito do Gemini, o Google pode usar o conteúdo para melhorar produtos dele.
+- O envio sem `Content-Length` (transferência em partes) não é limitado pelo middleware de tamanho; o limite de corpo na borda (proxy do EasyPanel) fica para a E7.
+
+### Como foi verificado
+- **Automatizado, sem chamadas reais:** 225 testes do backend (processamento de imagem; prompts, perfis, provedor com imagem, custos e renderização; e, com PostgreSQL,
+  `test_vision_api.py` e `test_models_db.py`: upload, isolamento entre usuários, limites, cache, modelo forte e exclusões em cascata) e 70 do frontend (painel de imagens, Markdown com fórmulas, leitura em voz alta).
+- **Migration 0003:** `alembic check` sem diferenças contra os modelos, ciclo `downgrade`/`upgrade` e o SQL de `infra/sql/0003-imagens-e-categorias.sql` aplicado por cima do estado 0002
+  num banco descartável (rodar o mesmo SQL duas vezes falha sem alterar nada, pois é uma transação).
+- **No navegador (provedor de teste):** criar matéria com área, enviar imagem, colar print, recusa de arquivo falso, extrair texto → editar → salvar como texto original (rótulo "lido de imagem"),
+  resolver problema com fórmulas desenhadas, exclusão com confirmação e layout no celular.
+- **Ainda não verificado:** uma chamada **real** do Gemini com imagem (não há chave no ambiente de desenvolvimento). Confirme no site enviando um print e, se algo falhar, rode `python -m app.ai.check`.
+
 ## Como adicionar um fornecedor real
 1. Criar `app/ai/providers/<nome>.py` com `name` e `complete(request) -> LLMResponse` (traduzir timeout →
    `ProviderTimeout`, 429 → `ProviderRateLimited`, demais → `ProviderError`; devolver JSON em texto e tokens quando houver).

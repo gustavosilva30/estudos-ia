@@ -12,7 +12,7 @@ from typing import TypeVar
 from sqlalchemy import Select, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Folder, Lesson, Note, SourceMaterial, Subject
+from app.models import Attachment, Folder, Lesson, Note, SourceMaterial, Subject
 
 M = TypeVar("M")
 
@@ -138,4 +138,13 @@ def lesson_notes(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID) -> list[
         select(Note)
         .where(Note.user_id == user_id, Note.lesson_id == lesson_id)
         .order_by(Note.created_at)
+    ))
+
+
+def lesson_attachments(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID) -> list[Attachment]:
+    """Metadados das imagens (os bytes ficam de fora: coluna deferred)."""
+    return list(db.scalars(
+        select(Attachment)
+        .where(Attachment.user_id == user_id, Attachment.lesson_id == lesson_id)
+        .order_by(Attachment.created_at)
     ))

@@ -39,6 +39,12 @@ class ProviderUnavailable(ProviderError):
 
 
 @dataclass(frozen=True)
+class ImagePart:
+    mime_type: str  # image/png, image/jpeg ou image/webp
+    data: bytes  # já validada e recodificada (app/services/images.py)
+
+
+@dataclass(frozen=True)
 class LLMRequest:
     operation: str
     system: str  # regras da aplicação (confiáveis)
@@ -46,6 +52,8 @@ class LLMRequest:
     json_schema: dict[str, Any]  # formato exigido da resposta
     max_output_tokens: int
     timeout_seconds: float
+    model: str | None = None  # None = o modelo padrão do provedor
+    images: tuple[ImagePart, ...] = ()  # imagens do usuário (conteúdo NÃO confiável, como o texto)
 
 
 @dataclass(frozen=True)

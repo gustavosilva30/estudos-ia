@@ -10,6 +10,7 @@ import { EditIcon, FolderIcon, PlusIcon, StarIcon, TrashIcon } from "@/component
 import { Field } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
+import { useCategories } from "@/lib/use-categories";
 import { errorMessage, useApi } from "@/lib/use-api";
 import type { Folder, LessonListItem, Page, Subject } from "@/lib/types";
 import { SubjectFormModal } from "./subject-form";
@@ -35,6 +36,7 @@ function flatten(folders: Folder[]): FolderNode[] {
 export function SubjectView({ id }: { id: string }) {
   const router = useRouter();
   const subject = useApi<Subject>(`/subjects/${id}`);
+  const { labelOf } = useCategories();
   const folders = useApi<Folder[]>(`/folders?subject_id=${id}`);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -84,6 +86,7 @@ export function SubjectView({ id }: { id: string }) {
           <span className="flex flex-wrap items-center gap-2">
             <SubjectDot color={s.color} />
             {s.lesson_count} {s.lesson_count === 1 ? "aula" : "aulas"}
+            {s.category !== "outro" && <Badge tone="primary">{labelOf(s.category)}</Badge>}
             {s.is_archived && <Badge>Arquivada</Badge>}
             <Link href="/materias" className="text-primary hover:underline">
               Todas as matérias

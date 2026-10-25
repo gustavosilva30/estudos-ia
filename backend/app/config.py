@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Gemini: "" = padrão do modelo. Valores: minimal | low | medium | high (varia por modelo).
     ai_thinking_level: str = Field(default="", pattern="^(|minimal|low|medium|high)$")
     ai_timeout_seconds: float = 60
+    # Modelo mais capaz para operações marcadas como "strong" (resolver problemas). Vazio = usa AI_MODEL.
+    ai_model_strong: str = ""
     ai_max_input_chars: int = 60_000
     ai_max_output_tokens: int = 2_000
     ai_max_retries: int = 2  # tentativas extras em erros transitórios
@@ -47,6 +49,14 @@ class Settings(BaseSettings):
     ai_monthly_budget_usd: float = 10.0  # 0 = sem limite; soma de todos os usuários
     ai_price_input_per_mtok: float = 0.0  # USD por milhão de tokens (preencha conforme o modelo)
     ai_price_output_per_mtok: float = 0.0
+    # Preço do modelo forte. None = reaproveita os preços acima (configure se o modelo forte custar diferente).
+    ai_price_input_per_mtok_strong: float | None = None
+    ai_price_output_per_mtok_strong: float | None = None
+
+    # Imagens
+    max_upload_bytes: int = 8_000_000  # limite do arquivo enviado (antes de reduzir/recodificar)
+    max_attachments_per_lesson: int = 20
+    max_user_storage_bytes: int = 200_000_000  # imagens guardadas por usuário
 
     @property
     def is_production(self) -> bool:

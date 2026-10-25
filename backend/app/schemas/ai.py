@@ -13,6 +13,7 @@ class OperationOut(BaseModel):
     label: str
     description: str
     supports_detail: bool
+    inputs: list[str]  # "material" (texto salvo) e/ou "attachment" (imagem)
 
 
 class OperationsOut(BaseModel):
@@ -21,7 +22,9 @@ class OperationsOut(BaseModel):
 
 
 class GenerateIn(BaseModel):
-    material_id: uuid.UUID
+    # Exatamente um dos dois: um texto salvo da aula ou uma imagem enviada.
+    material_id: uuid.UUID | None = None
+    attachment_id: uuid.UUID | None = None
     operation: str = Field(min_length=1, max_length=40)
     detail_level: DetailLevel | None = None  # None = preferência do usuário
     force: bool = False  # True = ignora o cache e gera de novo (consome cota)
@@ -29,7 +32,8 @@ class GenerateIn(BaseModel):
 
 class GenerationOut(BaseModel):
     id: uuid.UUID
-    material_id: uuid.UUID
+    material_id: uuid.UUID | None
+    attachment_id: uuid.UUID | None
     lesson_id: uuid.UUID
     operation: str
     operation_label: str
@@ -59,6 +63,11 @@ class SaveGenerationIn(BaseModel):
     @classmethod
     def _strip(cls, v):
         return (v.strip() or None) if isinstance(v, str) else v
+
+
+class SaveAsMaterialIn(BaseModel):
+    # Texto revisado pela pessoa. Vazio/ausente = usar a transcrição da IA como está.
+    content: str | None = Field(default=None, min_length=1, max_length=MAX_MATERIAL_CHARS)
 
 
 class SummaryCreate(BaseModel):

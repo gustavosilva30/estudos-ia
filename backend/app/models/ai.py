@@ -32,8 +32,8 @@ def _user_fk() -> Mapped[uuid.UUID]:
 
 
 class AIGeneration(IdMixin, TimestampMixin, Base):
-    """Resultado estruturado de uma operação de IA sobre um texto original.
-    A chave única impede chamadas duplicadas (mesmo texto, operação, nível, prompt e modelo)."""
+    """Resultado estruturado de uma operação de IA sobre um texto original OU uma imagem.
+    As chaves únicas impedem chamadas duplicadas (mesma origem, operação, nível, prompt e modelo)."""
 
     __tablename__ = "ai_generations"
     __table_args__ = (
@@ -42,15 +42,26 @@ class AIGeneration(IdMixin, TimestampMixin, Base):
             "user_id", "material_id", "operation", "detail_level", "input_hash",
             name="uq_ai_generations_dedup",
         ),
+        UniqueConstraint(
+            "user_id", "attachment_id", "operation", "detail_level", "input_hash",
+            name="uq_ai_generations_dedup_attachment",
+        ),
         ForeignKeyConstraint(
             ["material_id", "user_id"], ["source_materials.id", "source_materials.user_id"],
             ondelete="CASCADE", name="fk_ai_generations_material_user",
         ),
+        ForeignKeyConstraint(
+            ["attachment_id", "user_id"], ["attachments.id", "attachments.user_id"],
+            ondelete="CASCADE", name="fk_ai_generations_attachment_user",
+        ),
+        # Exatamente uma origem: um texto salvo ou uma imagem.
+        CheckConstraint("num_nonnulls(material_id, attachment_id) = 1", name="uma_origem"),
         Index("ix_ai_generations_user_created", "user_id", "created_at"),
     )
 
     user_id: Mapped[uuid.UUID] = _user_fk()
-    material_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    material_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    attachment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     operation: Mapped[str] = mapped_column(String(40), nullable=False)
     detail_level: Mapped[str] = mapped_column(String(12), nullable=False)
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
