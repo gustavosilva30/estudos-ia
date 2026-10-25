@@ -54,13 +54,18 @@ function validationMessage(items: ValidationItem[]): string {
 
 function messageFor(status: number, data: unknown): string {
   const detail = (data as { detail?: unknown } | null)?.detail;
-  if (typeof detail === "string" && status < 500) return detail;
+  // O backend só envia textos seguros em `detail` (em 500 é sempre a mensagem genérica). Para 502/503/504 isso
+  // inclui os avisos da IA ("serviço sobrecarregado", "demorou demais"); outros 5xx vêm de proxies, sem texto útil.
+  if (typeof detail === "string" && (status < 500 || [502, 503, 504].includes(status))) return detail;
   if (Array.isArray(detail)) return validationMessage(detail as ValidationItem[]);
   if (status === 401) return "Sessão expirada. Entre novamente.";
   if (status === 403) return "Você não tem permissão para fazer isso.";
   if (status === 404) return "Não encontrado.";
   if (status === 413) return "O conteúdo enviado é grande demais.";
   if (status === 429) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+  if (status === 524 || status === 522 || status === 504) {
+    return "A resposta demorou demais e foi interrompida. Tente novamente: se a IA já terminou, o resultado aparece rápido.";
+  }
   if (status >= 500) return "Ocorreu um erro no servidor. Tente novamente em instantes.";
   return "Não foi possível concluir a operação.";
 }

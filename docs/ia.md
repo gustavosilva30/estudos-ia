@@ -46,6 +46,7 @@ inválida é repetida e, se persistir, recusada (502) sem salvar nada.
 | Tamanho do texto enviado (413 se exceder) | `AI_MAX_INPUT_CHARS` (60.000) |
 | Tamanho da resposta | `AI_MAX_OUTPUT_TOKENS` (2.000); `resumo_rapido` até 800 |
 | Timeout por chamada | `AI_TIMEOUT_SECONDS` |
+| Prazo total da operação (padrão 80 s; evita o erro 524 do Cloudflare, que corta em ~100 s) | `AI_TOTAL_TIMEOUT_SECONDS` |
 | Repetições em timeout / limite do provedor / resposta inválida | `AI_MAX_RETRIES`, `AI_RETRY_BACKOFF_SECONDS` |
 | Ritmo por usuário | `AI_RATE_LIMIT_PER_MINUTE` (429 + `Retry-After`) |
 | Cota diária por usuário (dia UTC) | preferência `daily_ai_limit` (0–200) |

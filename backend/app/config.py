@@ -38,7 +38,10 @@ class Settings(BaseSettings):
     ai_api_base_url: str = "https://generativelanguage.googleapis.com"
     # Gemini: "" = padrão do modelo. Valores: minimal | low | medium | high (varia por modelo).
     ai_thinking_level: str = Field(default="", pattern="^(|minimal|low|medium|high)$")
-    ai_timeout_seconds: float = 60
+    ai_timeout_seconds: float = 60  # por chamada ao provedor
+    # Prazo total da operação (tentativas + esperas). Fica abaixo de ~100 s: proxies como o Cloudflare
+    # cortam a conexão aí (erro 524) e a pessoa ficaria sem resposta.
+    ai_total_timeout_seconds: float = 80
     # Modelo mais capaz para operações marcadas como "strong" (resolver problemas). Vazio = usa AI_MODEL.
     ai_model_strong: str = ""
     ai_max_input_chars: int = 60_000

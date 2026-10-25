@@ -1,6 +1,7 @@
 """Geração com IA: valida propriedade, evita chamadas duplicadas, aplica cotas, trata falhas do
 provedor, valida a resposta estruturada e registra consumo. Independe do fornecedor de IA."""
 
+import dataclasses
 import hashlib
 import json
 import logging
@@ -39,6 +40,7 @@ from app.repositories import library as repo
 
 log = logging.getLogger("estudos.ai")
 
+MIN_ATTEMPT_SECONDS = 5  # não vale iniciar uma nova tentativa com menos tempo que isso
 IMAGE_TOKEN_ESTIMATE = 1500  # só para estimar quando o provedor não informa os tokens de entrada
 
 _ERROR_MESSAGES = {
@@ -149,17 +151,24 @@ def _call_with_retries(
     attempts = 1 + max(0, settings.ai_max_retries)
     est_in = estimate_tokens(request.system + request.user) + IMAGE_TOKEN_ESTIMATE * len(request.images)
     last_status = "error"
+    deadline = time.monotonic() + settings.ai_total_timeout_seconds
     for attempt in range(attempts):
+        remaining = deadline - time.monotonic()
+        if attempt > 0 and remaining < MIN_ATTEMPT_SECONDS:
+            break  # sem tempo para outra tentativa: responde com o último erro antes do proxy cortar a conexão
         started = time.monotonic()
+        # Cada tentativa nunca passa do tempo que sobra do prazo total.
+        attempt_request = dataclasses.replace(request, timeout_seconds=max(1.0, min(request.timeout_seconds, remaining)))
         try:
-            response = provider.complete(request)
+            response = provider.complete(attempt_request)
         except ProviderError as exc:
             last_status = exc.status
             # Recusa por limite/sobrecarga (429/503) não é cobrada pelo provedor: registra a tentativa, sem tokens nem custo.
             billed_in = 0 if exc.status == "rate_limited" else est_in
             _log_usage(db, settings, provider, model, user_id, op, exc.status, billed_in, 0, started, strong)
             if exc.retryable and attempt < attempts - 1:
-                time.sleep(settings.ai_retry_backoff_seconds * (2**attempt))
+                pause = settings.ai_retry_backoff_seconds * (2**attempt)
+                time.sleep(max(0.0, min(pause, deadline - time.monotonic() - MIN_ATTEMPT_SECONDS)))
                 continue
             break
         tokens_in = response.input_tokens if response.input_tokens is not None else est_in

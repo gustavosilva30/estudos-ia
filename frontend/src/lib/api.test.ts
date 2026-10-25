@@ -57,6 +57,18 @@ describe("api", () => {
     expect((error as ApiError).message).not.toContain("segredo");
   });
 
+  it("mostra os avisos da IA em 502/503/504, mas não detalhes de outros 5xx", async () => {
+    mockFetch(503, { detail: "O serviço de IA está sobrecarregado." });
+    await expect(api("/ai/generate")).rejects.toThrow("O serviço de IA está sobrecarregado.");
+    mockFetch(504, { detail: "A IA demorou demais para responder." });
+    await expect(api("/ai/generate")).rejects.toThrow("A IA demorou demais para responder.");
+  });
+
+  it("explica o corte por tempo do proxy (524) sem expor o corpo", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>error code: 524</html>", { status: 524 })));
+    await expect(api("/ai/generate")).rejects.toThrow("demorou demais");
+  });
+
   it("informa o tempo de espera do limite de tentativas", async () => {
     mockFetch(429, { detail: "Muitas tentativas." }, { "Retry-After": "900" });
     await expect(api("/auth/login", { method: "POST", body: {} })).rejects.toMatchObject({

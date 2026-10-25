@@ -450,6 +450,17 @@ def test_recusa_por_sobrecarga_do_provedor_nao_gasta_cota_nem_orcamento(db):
     assert ana.get("/api/v1/ai/usage").json()["used_today"] == 1
 
 
+def test_prazo_total_impede_novas_tentativas_e_limita_cada_chamada(db):
+    app = build_app(db, ai_retry_backoff_seconds=0, ai_total_timeout_seconds=3, ai_timeout_seconds=60)
+    ana = User(app, "ana@example.com")
+    _, m = material_de(ana)
+    app.state.provider.queue += [ProviderTimeout()] * 3
+    assert gerar(ana, m).status_code == 504
+    (chamada,) = app.state.provider.calls  # sobrou menos que o mínimo para tentar de novo
+    assert chamada.timeout_seconds <= 3
+    assert uso(db) == ["timeout"]
+
+
 def test_timeout_e_erro_do_provedor_continuam_contando_como_uso(ana, provider):
     _, m = material_de(ana)
     provider.queue += [ProviderTimeout()] * 3
