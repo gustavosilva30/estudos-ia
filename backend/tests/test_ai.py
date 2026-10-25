@@ -432,3 +432,26 @@ def test_usuario_nao_acessa_resumos_de_outro(ana, bia):
     assert r.status_code == 404
     intacto = ana.get(f"/api/v1/summaries/{sid}").json()
     assert intacto["title"] == "Segredo da Ana" and intacto["current_version"] == 1
+
+
+def test_recusa_por_sobrecarga_do_provedor_nao_gasta_cota_nem_orcamento(db):
+    app = build_app(db, ai_retry_backoff_seconds=0, ai_price_input_per_mtok=1_000_000)  # custo visível se contar
+    ana = User(app, "ana@example.com")
+    _, m = material_de(ana)
+    app.state.provider.queue += [ProviderRateLimited()] * 3
+    assert gerar(ana, m).status_code == 503
+    usage = ana.get("/api/v1/ai/usage").json()
+    assert usage["used_today"] == 0 and usage["month_cost_usd"] == 0
+    assert uso(db) == ["rate_limited"] * 3  # as tentativas ficam registradas para diagnóstico
+    custo = db.scalar(text("SELECT coalesce(sum(estimated_cost_usd), 0) FROM ai_usage_logs"))
+    assert custo == 0
+    # depois que o provedor volta, o uso é contado normalmente
+    assert gerar(ana, m).status_code == 200
+    assert ana.get("/api/v1/ai/usage").json()["used_today"] == 1
+
+
+def test_timeout_e_erro_do_provedor_continuam_contando_como_uso(ana, provider):
+    _, m = material_de(ana)
+    provider.queue += [ProviderTimeout()] * 3
+    assert gerar(ana, m).status_code == 504
+    assert ana.get("/api/v1/ai/usage").json()["used_today"] == 3  # pode ter sido processado (e cobrado) mesmo sem resposta

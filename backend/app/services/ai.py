@@ -92,7 +92,9 @@ def usage_summary(db: Session, settings: Settings, user_id: uuid.UUID) -> dict:
     prefs = db.get(UserPreference, user_id)
     used_today = db.scalar(
         select(func.count()).select_from(AIUsageLog).where(
-            AIUsageLog.user_id == user_id, AIUsageLog.created_at >= _day_start()
+            AIUsageLog.user_id == user_id,
+            AIUsageLog.created_at >= _day_start(),
+            AIUsageLog.status != "rate_limited",  # recusas por sobrecarga do provedor não gastam a cota diária
         )
     ) or 0
     month_cost = db.scalar(
@@ -153,7 +155,9 @@ def _call_with_retries(
             response = provider.complete(request)
         except ProviderError as exc:
             last_status = exc.status
-            _log_usage(db, settings, provider, model, user_id, op, exc.status, est_in, 0, started, strong)
+            # Recusa por limite/sobrecarga (429/503) não é cobrada pelo provedor: registra a tentativa, sem tokens nem custo.
+            billed_in = 0 if exc.status == "rate_limited" else est_in
+            _log_usage(db, settings, provider, model, user_id, op, exc.status, billed_in, 0, started, strong)
             if exc.retryable and attempt < attempts - 1:
                 time.sleep(settings.ai_retry_backoff_seconds * (2**attempt))
                 continue

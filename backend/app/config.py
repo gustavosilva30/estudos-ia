@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     ai_max_input_chars: int = 60_000
     ai_max_output_tokens: int = 2_000
     ai_max_retries: int = 2  # tentativas extras em erros transitórios
-    ai_retry_backoff_seconds: float = 0.5
+    ai_retry_backoff_seconds: float = 2.0  # espera 2 s, 4 s...: picos de demanda do provedor costumam durar segundos
     ai_rate_limit_per_minute: int = 6  # por usuário
     ai_monthly_budget_usd: float = 10.0  # 0 = sem limite; soma de todos os usuários
     ai_price_input_per_mtok: float = 0.0  # USD por milhão de tokens (preencha conforme o modelo)
