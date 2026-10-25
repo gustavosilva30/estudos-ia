@@ -1,0 +1,79 @@
+# Frontend (E5)
+
+Next.js 16 (App Router) + React 19 + TypeScript + Tailwind 4. Tudo em português do Brasil.
+> O `frontend/AGENTS.md` (gerado pelo Next) avisa que esta versão tem mudanças em relação ao que se conhece:
+> leia `frontend/node_modules/next/dist/docs/` antes de usar APIs do framework. Exemplos desta base: `middleware` virou
+> **`proxy.ts`**, e com `cacheComponents` o que usa `useSearchParams`/dados dinâmicos precisa estar dentro de `<Suspense>`.
+
+## Estrutura (`frontend/src`)
+| Pasta | Conteúdo |
+|---|---|
+| `app/(auth)/` | `/entrar`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha` |
+| `app/(app)/` | Área logada (layout com menu): `/dashboard`, `/materias`, `/materias/[id]`, `/biblioteca`, `/aulas/nova`, `/aulas/[id]`, `/resumos/[id]`, `/busca` |
+| `app/proxy.ts` (`src/proxy.ts`) | Redirecionamento **otimista**: sem cookie de sessão → `/entrar?proximo=…`. Não é segurança; o backend valida cada requisição |
+| `components/ui/` | Componentes reutilizáveis: `Button`, `Field`, `PasswordField`, `Alert`, `Card`, `Spinner`, `Skeleton`, `ConfirmDialog` (confirmação de exclusões), ícones |
+| `components/` | `app-shell` (menu lateral / barra superior + navegação inferior), `theme-toggle`, `dashboard/`, `auth/` |
+| `lib/api.ts` | Cliente da API: mesmo domínio, cookie de sessão, cabeçalho CSRF em métodos que alteram dados, mensagens de erro em português (sem expor detalhes de erros 5xx) |
+| `lib/session.tsx` | Estado de sessão (`loading`/`anon`/`authed`/`error`), login, cadastro, logout |
+| `lib/theme.tsx` | Tema claro/escuro/sistema; script inline evita "piscar"; salvo no navegador e na conta |
+
+## Como funciona a autenticação na interface
+- O cookie `estudos_session` é `HttpOnly`: o JavaScript não o lê. O token CSRF vem do backend e fica **só em memória**.
+- Ao abrir o app, `GET /users/me` descobre se há sessão. Sessão expirada em qualquer tela → volta ao login com `?proximo=` (validado por `safeNext`: só caminhos internos). Sair de propósito leva ao login limpo.
+- Os dados privados são sempre buscados no navegador, com o cookie; nenhuma página estática contém dados de usuário.
+
+## Dashboard
+`GET /api/v1/dashboard` (backend, `services/dashboard.py`) devolve só dados reais do banco, filtrados pelo usuário:
+contagens (matérias não arquivadas, aulas, resumos, favoritos), progresso (**aulas com resumo ÷ total de aulas**; também quantas têm texto salvo),
+últimas 5 aulas e 5 resumos (salvar/editar um resumo conta como "estudar" a aula) e uso de IA do dia.
+**Revisões pendentes:** o módulo de revisão é da Fase 3; o painel mostra um aviso, não um número inventado.
+
+## Telas da biblioteca (E6)
+| Rota | O que faz |
+|---|---|
+| `/materias` | Lista de matérias (cor, nº de aulas, arquivadas); criar matéria |
+| `/materias/[id]` | Editar, arquivar, excluir (com confirmação); árvore de **pastas** (criar, renomear/mover, excluir sem perder conteúdo); aulas da matéria/pasta, paginadas |
+| `/biblioteca` | Abas **Aulas** e **Resumos**: pesquisa (debounce), filtro por matéria/tipo/favoritos, ordenação, paginação, favoritar na lista |
+| `/aulas/nova` | Título, matéria, pasta, data, observações e texto (digitado ou colado, com contador). Salva o texto original **antes** de qualquer uso de IA |
+| `/aulas/[id]` | Abas: **Texto original** (editar/adicionar/excluir; nunca alterado pela IA), **Anotações**, **IA** (escolher operação e nível, gerar, ver, salvar como resumo), **Resumos** da aula |
+| `/resumos/[id]` | **Editor**: título, Markdown com barra de formatação (título, subtítulo, destacar conceito, itálico, listas, citação), pré-visualização, "Salvar nova versão" (Ctrl+S), aviso de alterações não salvas, histórico de versões (ver / restaurar), favoritar, duplicar, **exportar TXT**, excluir |
+| `/busca` | **Pesquisa global** (matérias, aulas por título/texto, resumos com trecho destacado); também há uma caixa de pesquisa rápida no menu lateral |
+
+**Resultados da IA com o provedor de teste:** quando `provider = fake`, a tela mostra o aviso *"Resultado de demonstração"* — o texto é só uma
+montagem automática de trechos do material, não um resumo real.
+**Markdown seguro:** o conteúdo é renderizado com `react-markdown` (HTML bruto vira texto; `javascript:` é neutralizado; links externos com
+`rel="noopener noreferrer nofollow"`). Verificado manualmente no navegador. Negrito aparece como "conceito destacado".
+**Exportação:** TXT (Markdown em texto) é gerado no navegador. **PDF não está implementado** (botão desativado "em breve").
+
+## Navegação e responsividade
+- Desktop (≥1024px): menu lateral fixo com pesquisa rápida. Celular/tablet: barra superior + navegação inferior (5 itens).
+- **Revisão** continua "Em breve" (Fase 3).
+- Rotas dinâmicas (`[id]`) seguem o padrão do Next 16 com `cacheComponents`: `params` (promise) dentro de `<Suspense>`; o menu também fica em `<Suspense>`
+  (usa `usePathname`). As páginas da área logada declaram `export const instant = false` porque dependem da sessão (carregada no navegador).
+
+## Acessibilidade e UX
+Link "Pular para o conteúdo", rótulos em todos os campos, `aria-invalid`/`aria-describedby` nos erros, `role="alert"/"status"`,
+`aria-current` no menu, barra de progresso com `role="progressbar"`, foco visível, `prefers-reduced-motion`, esqueletos de carregamento,
+confirmação em `<dialog>` nativo (componente pronto para as exclusões da E6).
+
+## Rodar e testar
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:3000 (precisa do backend em 127.0.0.1:8000)
+npm run lint && npx tsc --noEmit
+npm test           # Vitest: cliente da API, redirecionamento seguro, datas
+npm run build
+```
+`BACKEND_INTERNAL_URL` (padrão `http://127.0.0.1:8000`) define para onde o Next encaminha `/api/*`. **Atenção:** é lido no *build*;
+em produção o ideal é o proxy do EasyPanel rotear `/api` direto ao backend (ver `docs/roadmap.md`, E7).
+Use `127.0.0.1` e não `localhost` (no Windows, `localhost` tenta IPv6 primeiro e atrasa cada conexão).
+
+## Verificado manualmente no navegador (E5)
+Redirecionamento do proxy para o login; validação inline do cadastro; cadastro → painel; painel com dados reais
+(matérias, aulas, resumo, favorito, progresso 33%); tema claro/escuro persistido na conta e após recarregar; layout de celular
+(375×812) com navegação inferior; logout limpa o cookie; erro de login em português; login retorna ao destino pedido.
+**E6 (navegador, desktop e celular):** criar matéria e pasta, criar aula com texto, gerar resultado de IA (aviso de demonstração), salvar como resumo,
+formatar e salvar nova versão, histórico de versões, pré-visualização, teste de conteúdo malicioso no Markdown, pesquisa global com termo destacado,
+biblioteca, confirmação de exclusão e editor no celular.
+Ainda **não** há testes automatizados de interface (Playwright) — previsto para a E7.

@@ -1,0 +1,21 @@
+# Roadmap
+
+| Etapa | Escopo | Status |
+|---|---|---|
+| E0 | Esqueleto, health, testes, compose dev, `.env.example`, docs base | concluída |
+| E1 | Modelos e migrations do núcleo + documentação do banco | concluída |
+| E2 | Autenticação, CSRF, rate limit (isolamento dos materiais é testado na E3) | concluída — ver [seguranca.md](seguranca.md) |
+| E3 | CRUD de matérias, pastas, aulas, textos, notas; busca e paginação | concluída — ver [api-biblioteca.md](api-biblioteca.md) |
+| E4 | Camada de IA e operações do MVP, custos, FakeProvider (+ resumos com versões no backend) | concluída — ver [ia.md](ia.md) |
+| E5 | Frontend base, tema, telas de autenticação, dashboard com dados reais | concluída — ver [frontend.md](frontend.md) |
+| E6 | Biblioteca, editor de resultados, versões, pesquisa global | concluída — ver [frontend.md](frontend.md) |
+| E7 | Endurecimento, deploy EasyPanel, backup/restauração | pendente |
+
+Fase 3 (aprendizado) e Fase 4 (expansão) conforme o plano aprovado. Fase 5: apenas `futuro-android.md`.
+
+## Decisões
+- Backend com 1 worker e sem Redis/filas até haver necessidade real.
+- Frontend e API no mesmo domínio (`/api`), para cookies de sessão `HttpOnly` sem CORS.
+- Conexões locais usam `127.0.0.1`, não `localhost`: no Windows, `localhost` tenta IPv6 primeiro e cada conexão leva ~20 s.
+- Cadastro aberto com flag para desligar (E2); IA começa só com `FakeProvider` (E4); SMTP indisponível: e-mails de recuperação vão para o log em desenvolvimento.
+- Imagem do backend em Python 3.12; local funciona com 3.11+.
