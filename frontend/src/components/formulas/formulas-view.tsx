@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CustomFormulaForm } from "@/components/formulas/custom-formula-form";
+import { GeneralMethodCard, GuideCard, SolveSteps } from "@/components/formulas/formula-guide";
 import { FormulaLessons } from "@/components/formulas/formula-lessons";
 import { Tex } from "@/components/formulas/tex";
 import { ToolsNav } from "@/components/tools/tools-nav";
@@ -132,6 +133,7 @@ export function FormulasView() {
               custom={selected.custom ? customs.find((c) => c.id === selected.id) : undefined}
               onMarksChanged={marksApi.reload}
               onBack={() => select(null)}
+              onOpen={select}
               onEdit={(c) => setEditing(c)}
               onDeleted={() => {
                 select(null);
@@ -140,9 +142,7 @@ export function FormulasView() {
               }}
             />
           ) : (
-            <Card>
-              <p className="text-sm text-muted">Escolha uma fórmula na lista para ver a explicação e resolver passo a passo.</p>
-            </Card>
+            <GeneralMethodCard category={filter} />
           )}
         </div>
       </div>
@@ -193,11 +193,12 @@ interface DetailProps {
   custom: CustomFormulaData | undefined;
   onMarksChanged: () => void;
   onBack: () => void;
+  onOpen: (key: string) => void;
   onEdit: (custom: CustomFormulaData) => void;
   onDeleted: () => void;
 }
 
-function FormulaDetail({ formula, mark, custom, onMarksChanged, onBack, onEdit, onDeleted }: DetailProps) {
+function FormulaDetail({ formula, mark, custom, onMarksChanged, onBack, onOpen, onEdit, onDeleted }: DetailProps) {
   const key = formulaKey(formula);
   const [solverIndex, setSolverIndex] = useState(0);
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -299,6 +300,8 @@ function FormulaDetail({ formula, mark, custom, onMarksChanged, onBack, onEdit, 
         </table>
       </Card>
 
+      <GuideCard formula={formula} onOpen={onOpen} />
+
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold">Resolver passo a passo</h3>
@@ -318,6 +321,8 @@ function FormulaDetail({ formula, mark, custom, onMarksChanged, onBack, onEdit, 
             ))}
           </Select>
         )}
+
+        <SolveSteps formula={formula} solverIndex={solverIndex} />
 
         <div className="grid gap-3 sm:grid-cols-2">
           {solver.needs.map((id) => {

@@ -1,5 +1,6 @@
 import { calculate } from "@/lib/calculator";
 import { categoryLabel, type Formula, type FormulaVar } from "@/lib/formula-engine";
+import { guideFor } from "@/lib/formula-guides";
 import type { CustomFormulaData } from "@/lib/types";
 
 /** Nomes que o motor de cálculo usa para outra coisa (espelha a lista do servidor). */
@@ -146,6 +147,13 @@ export function formulaAsText(formula: Formula, note?: string | null): string {
       return `${variable?.name ?? id} = ${value}`;
     });
     lines.push("", `Exemplo (${solver.label}): ${values.join("; ")}.`);
+  }
+  const guide = guideFor(formula);
+  if (guide) {
+    lines.push("", "Como funciona:", guide.how, "", "Quando usar:", guide.when);
+    lines.push("", "Macetes e facilitadores:", ...guide.tips.map((t) => `- ${t}`));
+    lines.push("", "Cuidados e erros comuns:", ...guide.watch.map((t) => `- ${t}`));
+    if (guide.remember) lines.push("", `Para memorizar: ${guide.remember}`);
   }
   if (note?.trim()) lines.push("", `Minha anotação: ${note.trim()}`);
   return lines.join("\n");

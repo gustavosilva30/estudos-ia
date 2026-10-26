@@ -122,6 +122,51 @@ describe("FormulasView: catálogo e resolvedor", () => {
     await act(async () => {});
   });
 
+  it("sem fórmula aberta mostra o método geral de resolução da área escolhida", async () => {
+    render(<FormulasView />);
+    expect(screen.getByText("Como resolver problemas de Matemática")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Física" }));
+    expect(screen.getByText("Como resolver problemas de Física")).toBeTruthy();
+    expect(screen.getByText(/divida por 3,6/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Química" }));
+    expect(screen.getByText("Como resolver problemas de Química")).toBeTruthy();
+    await act(async () => {});
+  });
+
+  it("ensina a fórmula: como funciona, macetes, cuidados, exemplo resolvido e relacionadas", async () => {
+    render(<FormulasView />);
+    open("Teorema de Pitágoras");
+    const guide = within(screen.getByLabelText("Entenda a fórmula"));
+    expect(guide.getByText("Como funciona")).toBeTruthy();
+    expect(guide.getByText("Quando usar")).toBeTruthy();
+    expect(guide.getByText("Macetes e facilitadores")).toBeTruthy();
+    expect(guide.getByText(/ternos pitagóricos/)).toBeTruthy();
+    expect(guide.getByText("Cuidados, regras e erros comuns")).toBeTruthy();
+    expect(guide.getByText("Para memorizar")).toBeTruthy();
+    expect(guide.getByText(/Exemplo resolvido: Hipotenusa/)).toBeTruthy();
+    expect(within(guide.getByRole("list", { name: "Exemplo resolvido" })).getAllByRole("listitem")).toHaveLength(3);
+    expect(document.querySelectorAll('[aria-label="Entenda a fórmula"] .katex').length).toBeGreaterThan(3);
+    // fórmula relacionada abre ao clicar
+    fireEvent.click(guide.getByRole("button", { name: "Lei dos cossenos" }));
+    expect(screen.getByRole("heading", { name: "Lei dos cossenos" })).toBeTruthy();
+    await act(async () => {});
+  });
+
+  it("mostra o passo a passo de cada item e muda ao trocar o que descobrir", async () => {
+    render(<FormulasView />);
+    open("Teorema de Pitágoras");
+    expect(screen.getByText("Como resolver: Hipotenusa (c)")).toBeTruthy();
+    expect(screen.getByText(/Localize o ângulo reto/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("O que você quer descobrir?"), { target: { value: "1" } });
+    expect(screen.getByText("Como resolver: Cateto a")).toBeTruthy();
+    expect(screen.getByText(/SUBTRAIA|subtração/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "← Voltar à lista" }));
+    open("Lei de Hooke (mola)");
+    expect(screen.getByText("(roteiro geral)")).toBeTruthy(); // sem passos específicos: roteiro montado a partir dos dados
+    expect(screen.getByText(/Anote os dados que você precisa: constante da mola \(N\/m\)/)).toBeTruthy();
+    await act(async () => {});
+  });
+
   it("abre direto pela fórmula do endereço (?f=)", async () => {
     search.params = new URLSearchParams("f=b:ohm");
     render(<FormulasView />);
@@ -181,6 +226,7 @@ describe("FormulasView: favoritos, anotações e fórmulas próprias", () => {
     type(/deformação/, "0.2");
     expect(steps()).toContain("2");
     expect(screen.queryByRole("button", { name: "Usar exemplo" })).toBeNull(); // só o catálogo tem exemplo
+    expect(screen.queryByLabelText("Entenda a fórmula")).toBeNull(); // fórmula própria não tem guia do catálogo
     expect(screen.getByRole("button", { name: "Editar fórmula" })).toBeTruthy();
   });
 

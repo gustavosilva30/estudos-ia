@@ -123,6 +123,11 @@ describe("formulaAsText", () => {
     expect(text).toContain("- cateto a: $a$");
     expect(text).toContain("Exemplo (Hipotenusa (c)): cateto a = 3; cateto b = 4.");
     expect(text).toContain("Minha anotação: só em triângulo retângulo");
+    expect(text).toContain("Como funciona:");
+    expect(text).toContain("Macetes e facilitadores:");
+    expect(text).toContain("ternos pitagóricos");
+    expect(text).toContain("Cuidados e erros comuns:");
+    expect(text).toContain("Para memorizar:");
   });
 
   it("não quebra para fórmulas próprias (sem exemplo) nem sem anotação", () => {

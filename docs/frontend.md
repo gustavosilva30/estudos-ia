@@ -148,6 +148,10 @@ Científica completa: expressões com precedência correta, `%`, `mod`, fatorial
   (a ≠ 0, hipotenusa maior que o cateto, Δ < 0...). Ângulos em graus; taxas em %.
 - **Como adicionar uma fórmula do catálogo:** inclua um item com variáveis, `solver`s (contas em ordem + passos em LaTeX com `«x»`) e um `example` com os resultados esperados. Os testes conferem **cada exemplo** (tolerância 1e-9),
   que cada símbolo usado existe e que todo LaTeX desenha sem erro.
+- **Guia didático em todas as fórmulas do catálogo** (`lib/formula-guides.ts` e `lib/guides-mat|fis|qui.ts`): *Como funciona*, *Quando usar*, *Macetes e facilitadores*, *Cuidados, regras e erros comuns*, *Para memorizar*, **exemplo resolvido** e *Estude também* (fórmulas relacionadas).
+  Cada item a descobrir tem o seu **roteiro de resolução**: específico quando o guia traz (ex.: Pitágoras, Bhaskara, trigonometria, pH) e, nos demais, um roteiro geral montado a partir das variáveis e unidades do item. Sem fórmula aberta, a tela mostra o
+  **método geral de resolução** da área (Matemática, Física ou Química). Textos aceitam matemática entre `$...$`. Os testes exigem guia em TODA fórmula, passos válidos, relacionadas existentes e LaTeX que desenha.
+  "Salvar como texto da aula" leva o guia junto, para a IA estudar com o conteúdo completo.
 - **Favoritos e anotações:** estrela e anotação pessoal em qualquer fórmula (tabela `formula_marks`).
 - **Fórmulas próprias:** nome, área, variáveis, a **conta** (calculada no navegador pelo motor da calculadora, já endurecido) e, opcionalmente, a equação em LaTeX. O servidor guarda, mas **nunca avalia a conta**. Até 100 por pessoa.
 - **Aulas:** vincular a fórmula a uma aula (aba **Fórmulas** da aula) e **"Salvar como texto"**: cria um texto da aula (origem "fórmula") com equação, variáveis, exemplo e a sua anotação, para a IA resumir e criar exercícios.
