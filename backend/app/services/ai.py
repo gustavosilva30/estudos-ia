@@ -40,6 +40,7 @@ from app.repositories import library as repo
 
 log = logging.getLogger("estudos.ai")
 
+FALLBACK_RESERVE_SECONDS = 30  # tempo guardado para o modelo normal quando o forte falha
 MIN_ATTEMPT_SECONDS = 5  # não vale iniciar uma nova tentativa com menos tempo que isso
 IMAGE_TOKEN_ESTIMATE = 1500  # só para estimar quando o provedor não informa os tokens de entrada
 
@@ -143,21 +144,22 @@ def _log_usage(
     log.info("ia_chamada op=%s status=%s tokens_in=%s tokens_out=%s", op.id, status, tokens_in, tokens_out)
 
 
-def _call_with_retries(
+def _attempt_loop(
     db: Session, settings: Settings, provider: LLMProvider, user_id: uuid.UUID, op: Operation, request: LLMRequest,
-    *, model: str, strong: bool,
+    *, model: str, strong: bool, deadline: float,
 ):
-    """Chama o provedor; repete só falhas transitórias/resposta inválida; valida o JSON recebido."""
+    """Chama o provedor com este modelo até o prazo. Devolve (resultado, modelo, tokens_in, tokens_out) ou o
+    status do último erro (str)."""
     attempts = 1 + max(0, settings.ai_max_retries)
     est_in = estimate_tokens(request.system + request.user) + IMAGE_TOKEN_ESTIMATE * len(request.images)
     last_status = "error"
-    deadline = time.monotonic() + settings.ai_total_timeout_seconds
+    request = dataclasses.replace(request, model=model)
     for attempt in range(attempts):
         remaining = deadline - time.monotonic()
         if attempt > 0 and remaining < MIN_ATTEMPT_SECONDS:
             break  # sem tempo para outra tentativa: responde com o último erro antes do proxy cortar a conexão
         started = time.monotonic()
-        # Cada tentativa nunca passa do tempo que sobra do prazo total.
+        # Cada tentativa nunca passa do tempo que sobra do prazo.
         attempt_request = dataclasses.replace(request, timeout_seconds=max(1.0, min(request.timeout_seconds, remaining)))
         try:
             response = provider.complete(attempt_request)
@@ -183,6 +185,34 @@ def _call_with_retries(
             break
         _log_usage(db, settings, provider, response.model, user_id, op, "ok", tokens_in, tokens_out, started, strong)
         return result, response.model, tokens_in, tokens_out
+    return last_status
+
+
+def _call_with_retries(
+    db: Session, settings: Settings, provider: LLMProvider, user_id: uuid.UUID, op: Operation, request: LLMRequest,
+    *, model: str, strong: bool, fallback_model: str | None = None,
+):
+    """Chama o provedor; repete só falhas transitórias/resposta inválida; valida o JSON recebido.
+
+    Se o modelo forte estiver sobrecarregado ou lento (sem resposta no prazo reservado a ele), tenta o modelo
+    normal com o tempo que sobrou. Devolve (resultado, modelo usado, tokens_in, tokens_out, usou_modelo_forte)."""
+    start = time.monotonic()
+    total = settings.ai_total_timeout_seconds
+    use_fallback = bool(fallback_model) and fallback_model != model
+    # Com alternativa disponível, o modelo forte não consome o prazo todo: guarda uma reserva para o modelo normal.
+    primary_deadline = start + (total - min(FALLBACK_RESERVE_SECONDS, total / 3) if use_fallback else total)
+    outcome = _attempt_loop(db, settings, provider, user_id, op, request, model=model, strong=strong, deadline=primary_deadline)
+    if not isinstance(outcome, str):
+        return (*outcome, strong)
+    last_status = outcome
+    if use_fallback and last_status in ("rate_limited", "timeout") and start + total - time.monotonic() >= MIN_ATTEMPT_SECONDS:
+        log.info("ia_fallback op=%s motivo=%s", op.id, last_status)
+        outcome = _attempt_loop(
+            db, settings, provider, user_id, op, request, model=fallback_model, strong=False, deadline=start + total
+        )
+        if not isinstance(outcome, str):
+            return (*outcome, False)
+        last_status = outcome
     if last_status == "invalid_output":
         raise AppError(502, "A IA devolveu uma resposta fora do formato esperado. Tente novamente.")
     code, message = _ERROR_MESSAGES.get(last_status, _ERROR_MESSAGES["error"])
@@ -269,14 +299,15 @@ def generate(
         model=model,
         images=images,
     )
-    result, used_model, tokens_in, tokens_out = _call_with_retries(
-        db, settings, provider, user_id, op, request, model=model, strong=strong
+    result, used_model, tokens_in, tokens_out, used_strong = _call_with_retries(
+        db, settings, provider, user_id, op, request, model=model, strong=strong,
+        fallback_model=settings.ai_model if strong else None,
     )
 
     fields = {
         "provider": provider.name, "model": used_model, "result": result.model_dump(),
         "input_tokens": tokens_in, "output_tokens": tokens_out,
-        "estimated_cost_usd": estimate_cost_usd(settings, tokens_in, tokens_out, strong=strong),
+        "estimated_cost_usd": estimate_cost_usd(settings, tokens_in, tokens_out, strong=used_strong),
     }
     if existing is not None:  # regeneração explícita (force): substitui a geração, não o original
         for k, v in fields.items():
@@ -293,7 +324,7 @@ def generate(
     except IntegrityError:  # duas requisições simultâneas: fica com a que gravou primeiro
         db.rollback()
         winner = find_existing()
-        if winner is None:
-            raise
+        if winner is None:  # sem concorrente: a origem (texto/imagem/matéria) foi excluída enquanto a IA trabalhava
+            raise NotFound("O texto ou a imagem foi excluído enquanto a IA trabalhava. Nada foi salvo.") from None
         return winner, True
     return generation, False

@@ -104,3 +104,17 @@ Redirecionamento do proxy para o login; validação inline do cadastro; cadastro
 formatar e salvar nova versão, histórico de versões, pré-visualização, teste de conteúdo malicioso no Markdown, pesquisa global com termo destacado,
 biblioteca, confirmação de exclusão e editor no celular.
 Ainda **não** há testes automatizados de interface (Playwright) — previsto para a E7.
+
+
+## Calculadora (`/calculadora`)
+
+Calculadora científica **sem IA**, 100% no navegador (nada vai ao servidor, não gasta cota). Código em `src/lib/calculator.ts` (motor) e `src/components/calculator/`.
+
+- **O que faz:** expressões completas com precedência correta, parênteses, `%`, `mod`, fatorial, potências e raízes, `ln`/`log`/`log2`/`exp`, trigonometria (graus ou radianos, com inversas e hiperbólicas), combinatória, estatística básica,
+  variáveis (`x = 3`), funções do usuário (`f(t) = t^2 - 4`), `ans`, memória (MC/MR/M+/M-), números complexos, matrizes (produto, determinante, inversa, transposta), frações, conversão de unidades (`5 km to m`),
+  histórico (últimos 50, no `localStorage`) e **gráfico de funções** de x.
+- **Entrada em português:** `×`, `÷`, `−`, `π`, `√`, `²` e vírgula decimal (`2,5`); dentro de funções e matrizes a vírgula continua separando argumentos (`max(1,2)`).
+- **Motor:** biblioteca `mathjs` (sem `eval`), carregada só nesta página. **Lista de funções permitidas fechada:** `import`, `createUnit`, `evaluate`, `parse`, `simplify`, `derivative`, `config` e funções que alocam matrizes/intervalos
+  gigantes (`ones`, `zeros`, `identity`, `range`, `1:1e9`...) ficam bloqueadas; combinatória é limitada a 10 000; expressão máxima de 500 caracteres; fatorial acima de 170 dá infinito sem calcular.
+  Os testes cobrem esses bloqueios e o tempo de resposta de cálculos gigantes.
+- **Fora do escopo:** CAS (simplificar/derivar/integrar simbolicamente), resolução de sistemas de equações e gráficos 3D.

@@ -11,6 +11,7 @@ from sqlalchemy import text
 from test_library import User
 
 from app.ai.operations import OPERATIONS, build_image_user_message
+from app.ai.provider import ProviderRateLimited, ProviderTimeout
 
 
 def png(size=(320, 200), color=(250, 250, 250)) -> bytes:
@@ -344,6 +345,89 @@ def test_resolver_problema_usa_modelo_forte_e_preco_proprio(db):
     assert solve["estimated_cost_usd"] == pytest.approx(expected_strong, abs=1e-6)
     assert resumo["estimated_cost_usd"] == pytest.approx(expected_cheap, abs=1e-6)
     assert ocr["model"] == "modelo-barato"
+
+
+def app_com_fallback(db):
+    return build_app(
+        db, ai_retry_backoff_seconds=0, ai_model="modelo-barato", ai_model_strong="modelo-forte",
+        ai_price_input_per_mtok=1.0, ai_price_output_per_mtok=1.0,
+        ai_price_input_per_mtok_strong=10.0, ai_price_output_per_mtok_strong=20.0,
+    )
+
+
+def test_modelo_forte_sobrecarregado_cai_para_o_modelo_normal(db):
+    app = app_com_fallback(db)
+    ana = User(app, "ana@example.com")
+    _, lesson = aula(ana)
+    att = imagem(ana, lesson)
+    app.state.provider.queue += [ProviderRateLimited()] * 3  # as 3 tentativas do forte são recusadas
+
+    r = gerar(ana, "resolver_problema", attachment_id=att["id"])
+    assert r.status_code == 200, r.text
+    solve = r.json()
+    assert [c.model for c in app.state.provider.calls] == ["modelo-forte"] * 3 + ["modelo-barato"]
+    assert solve["model"] == "modelo-barato"  # registra o modelo que realmente respondeu
+    # o custo usa o preço do modelo que respondeu, não o do forte
+    assert solve["estimated_cost_usd"] == pytest.approx((solve["input_tokens"] + solve["output_tokens"]) / 1e6, abs=1e-6)
+    # a nova tentativa em seguida vem do cache, sem nova chamada
+    assert gerar(ana, "resolver_problema", attachment_id=att["id"]).json()["cached"] is True
+    assert len(app.state.provider.calls) == 4
+
+
+def test_modelo_forte_lento_tambem_cai_para_o_normal(db):
+    app = app_com_fallback(db)
+    ana = User(app, "ana@example.com")
+    _, lesson = aula(ana)
+    att = imagem(ana, lesson)
+    app.state.provider.queue += [ProviderTimeout()] * 3
+    r = gerar(ana, "resolver_problema", attachment_id=att["id"])
+    assert r.status_code == 200 and r.json()["model"] == "modelo-barato"
+
+
+def test_se_o_modelo_normal_tambem_falha_o_erro_e_mostrado(db):
+    app = app_com_fallback(db)
+    ana = User(app, "ana@example.com")
+    _, lesson = aula(ana)
+    att = imagem(ana, lesson)
+    app.state.provider.queue += [ProviderRateLimited()] * 6
+    assert gerar(ana, "resolver_problema", attachment_id=att["id"]).status_code == 503
+    assert len(app.state.provider.calls) == 6
+
+
+def test_operacao_comum_nao_tem_fallback(db):
+    app = app_com_fallback(db)
+    ana = User(app, "ana@example.com")
+    m = ana.post(f"/api/v1/lessons/{aula(ana)[1]['id']}/materials", {"content": "Texto para resumir."}).json()
+    app.state.provider.queue += [ProviderRateLimited()] * 3
+    assert gerar(ana, "resumo_rapido", material_id=m["id"]).status_code == 503
+    assert {c.model for c in app.state.provider.calls} == {"modelo-barato"}
+
+
+def test_resposta_invalida_do_forte_nao_dispara_fallback(db):
+    app = app_com_fallback(db)
+    ana = User(app, "ana@example.com")
+    _, lesson = aula(ana)
+    att = imagem(ana, lesson)
+    app.state.provider.queue += ["isto nao e json"] * 3
+    assert gerar(ana, "resolver_problema", attachment_id=att["id"]).status_code == 502
+    assert {c.model for c in app.state.provider.calls} == {"modelo-forte"}
+
+
+def test_origem_excluida_enquanto_a_ia_trabalha_nao_vira_erro_500(db, ana, app):
+    subject, lesson = aula(ana)
+    att = imagem(ana, lesson)
+    provider = app.state.provider
+    original = provider.complete
+
+    def complete_and_delete(request):
+        response = original(request)
+        assert ana.c.delete(f"/api/v1/subjects/{subject['id']}", headers=ana.h).status_code == 204  # a pessoa exclui no meio
+        return response
+
+    provider.complete = complete_and_delete
+    r = gerar(ana, "resolver_problema", attachment_id=att["id"])
+    assert r.status_code == 404 and "excluído" in r.json()["detail"]
+    assert db.scalar(text("SELECT count(*) FROM ai_generations")) == 0
 
 
 def test_sem_modelo_forte_configurado_usa_o_padrao(ana, app):

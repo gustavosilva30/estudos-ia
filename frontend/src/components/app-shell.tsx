@@ -7,7 +7,7 @@ import type { ComponentType, SVGProps } from "react";
 import { useSession } from "@/lib/session";
 import { firstName } from "@/lib/format";
 import { ThemeToggle } from "./theme-toggle";
-import { BookIcon, HomeIcon, LibraryIcon, LogoutIcon, ReviewIcon, SearchIcon, SparkIcon } from "./ui/icons";
+import { BookIcon, CalculatorIcon, HomeIcon, LibraryIcon, LogoutIcon, ReviewIcon, SearchIcon, SparkIcon } from "./ui/icons";
 import { Alert, Button, cx, Spinner } from "./ui/primitives";
 
 interface NavItem {
@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: "/materias", label: "Matérias", Icon: BookIcon, ready: true },
   { href: "/biblioteca", label: "Biblioteca", Icon: LibraryIcon, ready: true },
   { href: "/busca", label: "Pesquisar", Icon: SearchIcon, ready: true },
+  { href: "/calculadora", label: "Calculadora", Icon: CalculatorIcon, ready: true },
   { href: "/revisao", label: "Revisão", Icon: ReviewIcon, ready: false },
 ];
 

@@ -115,6 +115,9 @@ Preços e nomes de modelo mudam: confira na página de preços do Google antes d
   a validação completa continua sendo feita pelo Pydantic na resposta.
 - **Custo estimado:** usa os tokens informados pelo Google (entrada, e saída + raciocínio como são cobrados); se faltarem, estima. É uma **estimativa conservadora**, não a fatura.
 - **Sobrecarga do modelo (503 "high demand") e limite de uso (429):** o app repete com espera crescente (`AI_RETRY_BACKOFF_SECONDS`, padrão 2 s → 2 s, 4 s) e, se persistir, avisa "serviço de IA sobrecarregado". São picos temporários do Google: tente de novo em instantes. Essas recusas **não são cobradas pelo provedor**, então ficam registradas em `ai_usage_logs` (status `rate_limited`) **sem tokens, sem custo e sem gastar a cota diária**. Se um modelo ficar sobrecarregado com frequência, troque `AI_MODEL_STRONG` por outro estável (ex.: `gemini-3.6-flash`) ou aumente `AI_MAX_RETRIES`.
+- **Fallback do modelo forte:** se o `AI_MODEL_STRONG` (resolver problema) estiver sobrecarregado ou lento, o app reserva ~30 s do prazo total e tenta o `AI_MODEL` normal.
+  A resposta é salva com o modelo que de fato respondeu (`model`) e o custo usa o preço dele; uma nova tentativa depois vem do cache (use "regenerar" para tentar o forte de novo).
+  Respostas fora do formato e erros de configuração não disparam o fallback. Sem `AI_MODEL_STRONG`, não há fallback.
 - **Outros erros:** 429/503 → "sobrecarregado/limite" (repete com espera); 500/502/504 e falhas de rede → repete; 400/401/403/404 (chave inválida, modelo inexistente) → **não repete**.
   O usuário vê só mensagens genéricas; o log do servidor registra o código HTTP e a mensagem curta do Google (sem conteúdo do usuário, sem chave).
 
