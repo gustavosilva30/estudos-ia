@@ -1,4 +1,6 @@
-import type { Category, Domain, Formula, FormulaVar, Line, Solver } from "@/lib/formula-engine";
+import type { Category, Formula } from "@/lib/formula-engine";
+import { f, solver, tex, v } from "@/lib/formula-dsl";
+import { EXTRA_FISICA, EXTRA_MATEMATICA, EXTRA_QUIMICA } from "@/lib/formulas-extra";
 
 /**
  * Catálogo de fórmulas. Cada `example` é verificado por testes automáticos (o resultado calculado tem de
@@ -7,33 +9,6 @@ import type { Category, Domain, Formula, FormulaVar, Line, Solver } from "@/lib/
  * Convenções: `«x»` nos passos vira o valor de x (negativo entre parênteses) e `«=x»` o valor puro. Ângulos
  * são digitados em graus e convertidos nas contas. Taxas em % são digitadas em % (10 = 10%).
  */
-
-const tex = String.raw;
-
-const v = (id: string, latex: string, name: string, unit?: string, domain: Domain = "any", def?: string): FormulaVar => ({
-  id, latex, name, unit, domain, default: def,
-});
-
-function solver(
-  label: string, needs: string[], compute: Record<string, string>, lines: Line[], answers: string[],
-  checks?: Solver["checks"],
-): Solver {
-  return { label, needs, compute, lines, answers, checks };
-}
-
-interface Spec {
-  id: string;
-  title: string;
-  category: Category;
-  topic: string;
-  latex: string;
-  summary: string;
-  vars: FormulaVar[];
-  solvers: Solver[];
-  example: Formula["example"];
-}
-const f = (spec: Spec): Formula => spec;
-
 
 // ---------------------------------------------------------------- Matemática
 
@@ -607,7 +582,12 @@ const QUIMICA: Formula[] = [
   }),
 ];
 
-export const FORMULAS: Formula[] = [...MATEMATICA, ...FISICA, ...QUIMICA];
+const ORDER: Category[] = ["matematica", "fisica", "quimica"];
+
+/** Catálogo completo, agrupado por área (a ordem dentro de cada área é a do código). */
+export const FORMULAS: Formula[] = [
+  ...MATEMATICA, ...EXTRA_MATEMATICA, ...FISICA, ...EXTRA_FISICA, ...QUIMICA, ...EXTRA_QUIMICA,
+].sort((a, b) => ORDER.indexOf(a.category) - ORDER.indexOf(b.category));
 
 export function formulaById(id: string): Formula | undefined {
   return FORMULAS.find((formula) => formula.id === id);

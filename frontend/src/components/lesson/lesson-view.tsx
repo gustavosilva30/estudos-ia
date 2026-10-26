@@ -14,11 +14,12 @@ import type { Folder, LessonDetail, Page, Subject } from "@/lib/types";
 import { useCategories } from "@/lib/use-categories";
 import { AiPanel } from "./ai-panel";
 import { ImagesPanel } from "./images-panel";
+import { FormulasPanel } from "@/components/lesson/formulas-panel";
 import { MaterialsPanel } from "./materials-panel";
 import { NotesPanel } from "./notes-panel";
 import { SummariesPanel } from "./summaries-panel";
 
-type Tab = "texto" | "anotacoes" | "imagens" | "ia" | "resumos";
+type Tab = "texto" | "anotacoes" | "imagens" | "formulas" | "ia" | "resumos";
 
 export function LessonView({ id }: { id: string }) {
   const router = useRouter();
@@ -61,6 +62,7 @@ export function LessonView({ id }: { id: string }) {
     { id: "texto", label: `Texto original (${l.materials.length})` },
     { id: "anotacoes", label: `Anotações (${l.notes.length})` },
     { id: "imagens", label: `Imagens (${l.attachments.length})` },
+    { id: "formulas", label: "Fórmulas" },
     { id: "ia", label: "IA" },
     { id: "resumos", label: "Resumos" },
   ];
@@ -141,6 +143,7 @@ export function LessonView({ id }: { id: string }) {
             onMaterialSaved={lesson.reload}
           />
         )}
+        {tab === "formulas" && <FormulasPanel lessonId={l.id} onMaterialSaved={lesson.reload} />}
         {tab === "ia" && <AiPanel materials={l.materials} categoryLabel={categoryLabel} />}
         {tab === "resumos" && <SummariesPanel lessonId={l.id} />}
       </div>

@@ -18,7 +18,8 @@ describe("catálogo", () => {
   it("tem fórmulas das três áreas e ids únicos", () => {
     expect(new Set(FORMULAS.map((f) => f.id)).size).toBe(FORMULAS.length);
     for (const c of CATEGORIES) expect(FORMULAS.some((f) => f.category === c.id), c.id).toBe(true);
-    expect(FORMULAS.length).toBeGreaterThanOrEqual(40);
+    expect(new Set(FORMULAS.map((f) => f.title)).size).toBe(FORMULAS.length);
+    expect(FORMULAS.length).toBeGreaterThanOrEqual(100);
     for (const name of ["pitagoras", "bhaskara", "juros-compostos", "newton-2", "ohm", "mol"]) expect(formulaById(name)).toBeDefined();
   });
 
@@ -39,13 +40,16 @@ describe("catálogo", () => {
         }
       }
     }
-    expect(formula.example.solver).toBeLessThan(formula.solvers.length);
+    expect(formula.example!.solver).toBeLessThan(formula.solvers.length);
   });
 
   it.each(FORMULAS.map((f) => [f.id, f] as const))("%s: o exemplo resolve ao resultado esperado e desenha em LaTeX", (_id, formula) => {
-    const result = ok(formula, formula.example.solver, formula.example.values);
-    for (const [name, expected] of Object.entries(formula.example.expect)) {
-      expect(result.values[name] as number, `${formula.id}.${name}`).toBeCloseTo(expected, 8);
+    const example = formula.example!;
+    const result = ok(formula, example.solver, example.values);
+    for (const [name, expected] of Object.entries(example.expect)) {
+      const actual = result.values[name] as number;
+      // Tolerância relativa: vale para valores muito pequenos (10⁻¹⁹) e muito grandes.
+      expect(Math.abs(actual - expected) / Math.max(Math.abs(expected), 1e-300), `${formula.id}.${name}: ${actual} ≠ ${expected}`).toBeLessThan(1e-9);
     }
     expect(result.lines.length).toBeGreaterThan(0);
     for (const line of result.lines) expect(() => render(line), line).not.toThrow();

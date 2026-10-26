@@ -10,6 +10,7 @@
 | E5 | Frontend base, tema, telas de autenticação, dashboard com dados reais | concluída — ver [frontend.md](frontend.md) |
 | E6 | Biblioteca, editor de resultados, versões, pesquisa global | concluída — ver [frontend.md](frontend.md) |
 | E7 | Endurecimento, deploy EasyPanel, backup/restauração | pendente |
+| E8e | Ferramentas: tabela periódica, constantes, conversor, tabelas; fórmulas (134) com favoritos, anotações, fórmulas próprias e vínculo com aulas | concluída — ver [frontend.md](frontend.md) |
 | E8d | Biblioteca de fórmulas com resolvedor passo a passo (sem IA) | concluída — ver [frontend.md](frontend.md) |
 | E8c | Calculadora científica sem IA (com gráfico) | concluída — ver [frontend.md](frontend.md) |
 | E8b | Documentos (PDF) e links lidos pela IA | concluída: testes com banco (backend e frontend); falta conferir no site com um PDF/link reais; ver [ia.md](ia.md) |

@@ -120,14 +120,43 @@ Calculadora científica **sem IA**, 100% no navegador (nada vai ao servidor, nã
 - **Fora do escopo:** CAS (simplificar/derivar/integrar simbolicamente), resolução de sistemas de equações e gráficos 3D.
 
 
-## Fórmulas (`/formulas`)
+## Ferramentas (`/ferramentas`)
 
-Biblioteca de fórmulas com **resolvedor passo a passo**, sem IA e 100% no navegador. Código: `src/lib/formula-engine.ts` (motor), `src/lib/formulas.ts` (catálogo) e `src/components/formulas/`.
+Menu **Ferramentas** com abas para navegar entre elas (componente `ToolsNav`). Tudo roda no navegador, **sem IA e sem gastar cota**; só favoritos, anotações, fórmulas próprias e vínculos com aulas usam o servidor.
 
-- **Catálogo (~50):** Matemática (Pitágoras, Bhaskara, soma e produto, vértice, áreas e volumes, leis dos senos e cossenos, trigonometria no triângulo retângulo, geometria analítica, porcentagem, regra de três, juros, PA/PG, combinatória),
-  Física (cinemática, Newton, energia, potência, pressão, empuxo, calor, Ohm, ondas) e Química (densidade, mol, molaridade, diluição, pH, gases ideais). Busca sem acento e filtro por área.
-- **Resolvedor:** a pessoa escolhe o que descobrir, informa os valores (vírgula decimal aceita) e vê a fórmula isolada, os valores substituídos e o resultado, desenhados com KaTeX. Valida entradas (positivo, inteiro...) e condições
-  (a ≠ 0, hipotenusa maior que o cateto...). Bhaskara mostra Δ e trata duas raízes, uma raiz ou nenhuma. Ângulos em graus; taxas em %.
-- **Como adicionar uma fórmula:** inclua um item em `formulas.ts` com variáveis, um ou mais `solver` (contas em ordem + passos em LaTeX com `«x»`) e um `example` com os resultados esperados. Os testes conferem **cada exemplo**,
+| Ferramenta | Rota | Código |
+|---|---|---|
+| Calculadora | `/calculadora` | `lib/calculator.ts`, `components/calculator/` |
+| Fórmulas | `/formulas` | `lib/formula-engine.ts`, `lib/formulas*.ts`, `components/formulas/` |
+| Tabela periódica | `/ferramentas/tabela-periodica` | `lib/elements.ts`, `components/tools/periodic-table.tsx` |
+| Constantes | `/ferramentas/constantes` | `lib/constants-data.ts` |
+| Conversor de unidades | `/ferramentas/conversor` | `lib/converter.ts` |
+| Tabelas de consulta | `/ferramentas/tabelas` | `lib/reference-tables.ts` |
+
+### Calculadora
+
+Científica completa: expressões com precedência correta, `%`, `mod`, fatorial, potências e raízes, `ln`/`log`/`log2`/`exp`, trigonometria em graus ou radianos, combinatória, estatística, variáveis (`x = 3`), funções
+(`f(t) = t^2 - 4`), `ans`, memória, números complexos, matrizes, frações, unidades (`5 km to m`), comparações, histórico (50, no `localStorage`) e **gráfico de funções**. Aceita `×`, `÷`, `π`, `√` e vírgula decimal (`2,5`).
+
+- **Motor:** `mathjs` (sem `eval`) com **lista fechada de funções**: `import`, `createUnit`, `evaluate`, `parse`, `simplify`, `config` e tudo que aloca matrizes/intervalos gigantes (`ones`, `identity`, `range`, `1:1e9`) ficam bloqueados;
+  combinatória limitada a 10 000; expressão máxima de 500 caracteres. Os testes cobrem os bloqueios e o tempo de resposta de cálculos gigantes.
+
+### Fórmulas (134, em Matemática, Física e Química)
+
+- **Catálogo** (`formulas.ts` e `formulas-extra-*.ts`): cada fórmula tem equação em LaTeX, variáveis, explicação e um ou mais *solvers* (o que descobrir). A busca ignora acentos; filtros por área, **Favoritas** e **Minhas**.
+- **Resolvedor passo a passo:** escolhe-se a incógnita, informam-se os valores (vírgula decimal aceita) e vê-se a fórmula isolada, os valores substituídos e o resultado, desenhados com KaTeX. Valida entradas e condições
+  (a ≠ 0, hipotenusa maior que o cateto, Δ < 0...). Ângulos em graus; taxas em %.
+- **Como adicionar uma fórmula do catálogo:** inclua um item com variáveis, `solver`s (contas em ordem + passos em LaTeX com `«x»`) e um `example` com os resultados esperados. Os testes conferem **cada exemplo** (tolerância 1e-9),
   que cada símbolo usado existe e que todo LaTeX desenha sem erro.
-- **Fora do escopo por ora:** fórmulas próprias salvas na conta, favoritos, vínculo com aulas e "explicar com IA".
+- **Favoritos e anotações:** estrela e anotação pessoal em qualquer fórmula (tabela `formula_marks`).
+- **Fórmulas próprias:** nome, área, variáveis, a **conta** (calculada no navegador pelo motor da calculadora, já endurecido) e, opcionalmente, a equação em LaTeX. O servidor guarda, mas **nunca avalia a conta**. Até 100 por pessoa.
+- **Aulas:** vincular a fórmula a uma aula (aba **Fórmulas** da aula) e **"Salvar como texto"**: cria um texto da aula (origem "fórmula") com equação, variáveis, exemplo e a sua anotação, para a IA resumir e criar exercícios.
+- **Endereço compartilhável:** `/formulas?f=b:pitagoras` (catálogo) ou `?f=c:<uuid>` (própria).
+
+### Tabela periódica, constantes, conversor e tabelas
+
+- **Tabela periódica:** 118 elementos (massa, família, período/grupo, estado a 25 °C, radioatividade) com busca, filtro por família e **distribuição eletrônica pelo diagrama de Pauling** (camadas e valência).
+- **Constantes:** ~40 constantes físicas e químicas (CODATA; as definidas pelo SI são exatas) com botão **Copiar** (valor com ponto decimal).
+- **Conversor:** 11 grandezas (comprimento, massa, tempo, área, volume, velocidade, força, pressão, energia, potência, ângulo, dados) mais temperatura (conversão afim); mostra o valor em todas as unidades.
+- **Tabelas de consulta:** derivadas, integrais, trigonometria, ângulos notáveis, potências e logaritmos, limites notáveis, áreas e volumes, com busca entre todas.
+- **Fora do escopo por ora:** cálculo simbólico (CAS), distribuição eletrônica com as exceções reais, gráficos 3D.

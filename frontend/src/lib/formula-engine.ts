@@ -1,12 +1,17 @@
 import { calculate } from "@/lib/calculator";
 
-export type Category = "matematica" | "fisica" | "quimica";
+export type Category = "matematica" | "fisica" | "quimica" | "outra";
 
+/** Áreas do catálogo (usadas nos filtros). Fórmulas próprias podem ainda ter a área "outra". */
 export const CATEGORIES: { id: Category; label: string }[] = [
   { id: "matematica", label: "Matemática" },
   { id: "fisica", label: "Física" },
   { id: "quimica", label: "Química" },
 ];
+
+export function categoryLabel(category: Category): string {
+  return CATEGORIES.find((c) => c.id === category)?.label ?? "Outra";
+}
 
 /** Restrição dos valores que a pessoa digita. */
 export type Domain = "any" | "pos" | "nonneg" | "nonnegint";
@@ -47,7 +52,15 @@ export interface Formula {
   summary: string;
   vars: FormulaVar[];
   solvers: Solver[];
-  example: { solver: number; values: Record<string, string>; expect: Record<string, number> };
+  /** Exemplo verificado pelos testes (só o catálogo tem; fórmulas próprias não). */
+  example?: { solver: number; values: Record<string, string>; expect: Record<string, number> };
+  /** Fórmula criada pela pessoa (guardada no servidor). */
+  custom?: boolean;
+}
+
+/** Chave que identifica a fórmula no servidor: `b:<id>` (catálogo) ou `c:<uuid>` (própria). */
+export function formulaKey(formula: Pick<Formula, "id" | "custom">): string {
+  return `${formula.custom ? "c" : "b"}:${formula.id}`;
 }
 
 export type Outcome =

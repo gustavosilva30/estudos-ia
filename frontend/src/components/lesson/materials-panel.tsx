@@ -138,7 +138,7 @@ function MaterialCard({
         <div className="flex items-center gap-2">
           <h3 className="font-semibold">{label}</h3>
           <Badge>
-            {{ pasted: "colado", image: "lido de imagem", typed: "digitado", pdf: "PDF", link: "link" }[material.origin] ?? "digitado"}
+            {{ pasted: "colado", image: "lido de imagem", typed: "digitado", pdf: "PDF", link: "link", formula: "fórmula" }[material.origin] ?? "digitado"}
           </Badge>
           <span className="text-xs text-muted">atualizado em {formatDateTime(material.updated_at)}</span>
         </div>

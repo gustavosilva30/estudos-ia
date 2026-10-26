@@ -119,10 +119,49 @@ export interface Material {
   lesson_id: string;
   content: string;
   content_hash: string;
-  origin: "typed" | "pasted" | "image" | "pdf" | "link";
+  origin: "typed" | "pasted" | "image" | "pdf" | "link" | "formula";
   source_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FormulaMark {
+  formula_key: string;
+  is_favorite: boolean;
+  note: string | null;
+  updated_at: string;
+}
+
+export interface CustomFormulaVariable {
+  id: string;
+  name: string;
+  unit?: string | null;
+}
+
+export interface CustomFormulaData {
+  id: string;
+  title: string;
+  category: "matematica" | "fisica" | "quimica" | "outra";
+  latex: string | null;
+  description: string | null;
+  variables: CustomFormulaVariable[];
+  expression: string;
+  result_name: string;
+  result_label: string;
+  result_unit: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonFormulaLink {
+  formula_key: string;
+  created_at: string;
+}
+
+export interface FormulaLesson {
+  lesson_id: string;
+  lesson_title: string;
+  subject_name: string;
 }
 
 export interface Note {

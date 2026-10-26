@@ -115,7 +115,7 @@ class SourceMaterial(IdMixin, TimestampMixin, Base):
             ["lesson_id", "user_id"], ["lessons.id", "lessons.user_id"], ondelete="CASCADE",
             name="fk_source_materials_lesson_user",
         ),
-        CheckConstraint("origin IN ('typed', 'pasted', 'image', 'pdf', 'link')", name="origem_valida"),
+        CheckConstraint("origin IN ('typed', 'pasted', 'image', 'pdf', 'link', 'formula')", name="origem_valida"),
         CheckConstraint("length(content) > 0", name="conteudo_nao_vazio"),
         Index("ix_source_materials_lesson", "user_id", "lesson_id"),
         Index("ix_source_materials_search", "search_vector", postgresql_using="gin"),

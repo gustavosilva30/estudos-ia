@@ -99,7 +99,7 @@ class FolderOut(BaseModel):
 
 class MaterialIn(BaseModel):
     content: str = Field(min_length=1, max_length=MAX_MATERIAL_CHARS)
-    origin: Literal["typed", "pasted"] = "typed"
+    origin: Literal["typed", "pasted", "formula"] = "typed"
 
 
 class MaterialUpdate(BaseModel):

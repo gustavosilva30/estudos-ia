@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CalculatorView } from "./calculator-view";
 import { niceStep, segments } from "./function-plot";
 
+vi.mock("next/navigation", () => ({ usePathname: () => "/calculadora" }));
+
 beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {

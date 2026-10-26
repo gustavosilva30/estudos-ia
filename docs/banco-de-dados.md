@@ -48,6 +48,8 @@ barreira; a principal continua sendo o backend, que filtra todas as consultas pe
 - `ai_generations.material_id` agora aceita `NULL` e há `attachment_id` (FK composta, cascata). `CHECK`
   `num_nonnulls(material_id, attachment_id) = 1`: a origem é **um texto OU uma imagem**. Nova chave única de anti-duplicação
   para imagens.
+- Migration 0005 (`infra/sql/0005-formulas-do-usuario.sql`): `formula_marks` (favorito/anotação por usuário e chave; único por usuário+chave), `custom_formulas` (fórmulas próprias; `variables` em JSONB; a conta é só texto,
+  avaliada no navegador) e `lesson_formulas` (vínculo com aula por chave de fórmula; FK composta `(lesson_id, user_id)` com exclusão em cascata). `source_materials.origin` aceita também `formula`.
 - Migration 0004 (`infra/sql/0004-documentos-e-links.sql`): `source_materials.origin` aceita `pdf` e `link` e ganha `source_name`.
 - `source_materials.origin` aceita também `image` (texto transcrito de uma imagem e revisado pelo usuário).
 - Excluir a imagem apaga as gerações dela; **resumos já salvos permanecem** (`summaries.generation_id` vira NULL).

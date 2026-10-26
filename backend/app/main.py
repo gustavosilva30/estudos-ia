@@ -9,6 +9,7 @@ from app.api.v1 import ai as ai_api
 from app.api.v1 import attachments as attachments_api
 from app.api.v1 import auth as auth_api
 from app.api.v1 import dashboard as dashboard_api
+from app.api.v1 import formulas as formulas_api
 from app.api.v1 import imports as imports_api
 from app.api.v1 import lessons as lessons_api
 from app.api.v1 import search as search_api
@@ -95,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(search_api.router)
     app.include_router(attachments_api.router)
     app.include_router(imports_api.router)
+    app.include_router(formulas_api.router)
     return app
 
 

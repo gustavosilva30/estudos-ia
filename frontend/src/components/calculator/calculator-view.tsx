@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FunctionPlot } from "@/components/calculator/function-plot";
+import { ToolsNav } from "@/components/tools/tools-nav";
 import { PageHeader } from "@/components/ui/forms";
 import { Button, Card, cx } from "@/components/ui/primitives";
 import { calculate, type AngleMode } from "@/lib/calculator";
@@ -166,6 +167,8 @@ export function CalculatorView() {
         title="Calculadora"
         subtitle="Científica, sem IA: roda no seu navegador. Aceita expressões completas, variáveis, matrizes, números complexos, unidades e gráficos."
       />
+
+      <ToolsNav />
 
       <div role="tablist" aria-label="Modo" className="inline-flex rounded-lg border border-line p-0.5">
         {([["calc", "Calculadora"], ["graph", "Gráfico"]] as const).map(([id, name]) => (

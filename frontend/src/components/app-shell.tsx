@@ -7,7 +7,7 @@ import type { ComponentType, SVGProps } from "react";
 import { useSession } from "@/lib/session";
 import { firstName } from "@/lib/format";
 import { ThemeToggle } from "./theme-toggle";
-import { BookIcon, CalculatorIcon, FormulaIcon, HomeIcon, LibraryIcon, LogoutIcon, ReviewIcon, SearchIcon, SparkIcon } from "./ui/icons";
+import { BookIcon, HomeIcon, LibraryIcon, LogoutIcon, ReviewIcon, SearchIcon, SparkIcon, ToolsIcon } from "./ui/icons";
 import { Alert, Button, cx, Spinner } from "./ui/primitives";
 
 interface NavItem {
@@ -16,6 +16,8 @@ interface NavItem {
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   /** false = tela ainda não construída: aparece desativada, sem link quebrado. */
   ready: boolean;
+  /** Outros caminhos que também marcam este item como ativo (ex.: as ferramentas). */
+  alsoActive?: string[];
 }
 
 const NAV: NavItem[] = [
@@ -23,8 +25,7 @@ const NAV: NavItem[] = [
   { href: "/materias", label: "Matérias", Icon: BookIcon, ready: true },
   { href: "/biblioteca", label: "Biblioteca", Icon: LibraryIcon, ready: true },
   { href: "/busca", label: "Pesquisar", Icon: SearchIcon, ready: true },
-  { href: "/formulas", label: "Fórmulas", Icon: FormulaIcon, ready: true },
-  { href: "/calculadora", label: "Calculadora", Icon: CalculatorIcon, ready: true },
+  { href: "/ferramentas", label: "Ferramentas", Icon: ToolsIcon, ready: true, alsoActive: ["/calculadora", "/formulas"] },
   { href: "/revisao", label: "Revisão", Icon: ReviewIcon, ready: false },
 ];
 
@@ -142,7 +143,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const { user } = state;
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (item: NavItem) =>
+    [item.href, ...(item.alsoActive ?? [])].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
   async function onLogout() {
     leaving.current = true;
@@ -158,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <QuickSearch />
         <nav aria-label="Principal" className="mt-4 flex flex-1 flex-col gap-1">
           {NAV.map((item) => (
-            <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
+            <SidebarLink key={item.href} item={item} active={isActive(item)} />
           ))}
         </nav>
         <div className="space-y-2 border-t border-line pt-4">
@@ -204,7 +206,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {NAV.map((item) => (
-          <BottomLink key={item.href} item={item} active={isActive(item.href)} />
+          <BottomLink key={item.href} item={item} active={isActive(item)} />
         ))}
       </nav>
     </div>

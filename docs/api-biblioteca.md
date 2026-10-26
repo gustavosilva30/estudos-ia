@@ -63,6 +63,13 @@ da vítima permanecem intactos após as tentativas.
 | POST | `/api/v1/lessons/{id}/attachments` | Envio multipart (`file`): PNG/JPEG/WebP até `MAX_UPLOAD_BYTES`; devolve só metadados |
 | POST | `/api/v1/lessons/{id}/materials/from-file` | Envio multipart (`file`) de um **PDF** (até `MAX_DOCUMENT_BYTES`, `MAX_PDF_PAGES` páginas): extrai o texto e o salva como texto original (`origin: pdf`, `source_name` = nome do arquivo). O arquivo não é guardado |
 | POST | `/api/v1/lessons/{id}/materials/from-link` | `{url}`: baixa uma página pública (HTML, texto ou PDF) e salva o texto (`origin: link`, `source_name` = endereço). Limite `RATE_LIMIT_IMPORT_USER` por janela |
+| GET | `/api/v1/formulas/marks` | Favoritos e anotações do usuário sobre fórmulas |
+| PUT | `/api/v1/formulas/marks/{key}` | `{is_favorite?, note?}` (upsert; sem favorito e sem anotação, a marca é removida). `key` = `b:<id do catálogo>` ou `c:<uuid>` |
+| GET/POST | `/api/v1/formulas/custom` | Lista / cria fórmula própria (`title`, `category`, `latex?`, `description?`, `variables[]`, `expression`, `result_name`, `result_label`, `result_unit?`); até 100 por usuário |
+| PUT/DELETE | `/api/v1/formulas/custom/{id}` | Edita / exclui (remove também as marcas e os vínculos com aulas) |
+| GET | `/api/v1/formulas/{key}/lessons` | Aulas (do usuário) às quais a fórmula está vinculada |
+| GET/POST | `/api/v1/lessons/{id}/formulas` | Lista / vincula (`{formula_key}`; repetir não duplica; até 50 por aula) |
+| DELETE | `/api/v1/lessons/{id}/formulas/{key}` | Desvincula |
 | GET | `/api/v1/attachments/{id}/content` | A imagem (só o dono; cabeçalhos seguros) |
 | DELETE | `/api/v1/attachments/{id}` | Exclui a imagem e as gerações feitas a partir dela |
 | POST | `/api/v1/ai/generate` | Agora aceita `attachment_id` **ou** `material_id` (exatamente um) |

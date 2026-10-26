@@ -74,11 +74,6 @@ export const LogoutIcon = (p: IconProps) => (
     <path d="M16 8l4 4-4 4M20 12H9" />
   </Base>
 );
-export const StarIcon = (p: IconProps) => (
-  <Base {...p}>
-    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
-  </Base>
-);
 export const SparkIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
@@ -93,6 +88,16 @@ export const CalculatorIcon = (p: IconProps) => (
 export const FormulaIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M18 5H7l5 7-5 7h11" />
+  </Base>
+);
+export const ToolsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z" />
+  </Base>
+);
+export const StarIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
   </Base>
 );
 export const SearchIcon = (p: IconProps) => (
