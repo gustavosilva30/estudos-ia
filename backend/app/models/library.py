@@ -115,7 +115,7 @@ class SourceMaterial(IdMixin, TimestampMixin, Base):
             ["lesson_id", "user_id"], ["lessons.id", "lessons.user_id"], ondelete="CASCADE",
             name="fk_source_materials_lesson_user",
         ),
-        CheckConstraint("origin IN ('typed', 'pasted', 'image')", name="origem_valida"),
+        CheckConstraint("origin IN ('typed', 'pasted', 'image', 'pdf', 'link')", name="origem_valida"),
         CheckConstraint("length(content) > 0", name="conteudo_nao_vazio"),
         Index("ix_source_materials_lesson", "user_id", "lesson_id"),
         Index("ix_source_materials_search", "search_vector", postgresql_using="gin"),
@@ -127,6 +127,8 @@ class SourceMaterial(IdMixin, TimestampMixin, Base):
     # SHA-256 do conteúdo: usado para evitar chamadas de IA duplicadas.
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     origin: Mapped[str] = mapped_column(String(10), nullable=False, server_default="typed")
+    # De onde veio o texto: nome do PDF ou endereço do link (nulo para texto digitado/colado).
+    source_name: Mapped[str | None] = mapped_column(String(500))
     search_vector: Mapped[str] = mapped_column(
         TSVECTOR, Computed("to_tsvector('portuguese', coalesce(content, ''))", persisted=True)
     )

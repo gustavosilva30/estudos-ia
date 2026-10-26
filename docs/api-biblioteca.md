@@ -61,6 +61,8 @@ da vítima permanecem intactos após as tentativas.
 | GET | `/api/v1/subject-categories` | Áreas de conhecimento disponíveis (`id`, `label`, `description`) |
 | POST/PATCH | `/api/v1/subjects` · `/subjects/{id}` | Aceitam `category` (padrão `outro`; valor desconhecido → 422) |
 | POST | `/api/v1/lessons/{id}/attachments` | Envio multipart (`file`): PNG/JPEG/WebP até `MAX_UPLOAD_BYTES`; devolve só metadados |
+| POST | `/api/v1/lessons/{id}/materials/from-file` | Envio multipart (`file`) de um **PDF** (até `MAX_DOCUMENT_BYTES`, `MAX_PDF_PAGES` páginas): extrai o texto e o salva como texto original (`origin: pdf`, `source_name` = nome do arquivo). O arquivo não é guardado |
+| POST | `/api/v1/lessons/{id}/materials/from-link` | `{url}`: baixa uma página pública (HTML, texto ou PDF) e salva o texto (`origin: link`, `source_name` = endereço). Limite `RATE_LIMIT_IMPORT_USER` por janela |
 | GET | `/api/v1/attachments/{id}/content` | A imagem (só o dono; cabeçalhos seguros) |
 | DELETE | `/api/v1/attachments/{id}` | Exclui a imagem e as gerações feitas a partir dela |
 | POST | `/api/v1/ai/generate` | Agora aceita `attachment_id` **ou** `material_id` (exatamente um) |

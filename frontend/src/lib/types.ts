@@ -119,7 +119,8 @@ export interface Material {
   lesson_id: string;
   content: string;
   content_hash: string;
-  origin: "typed" | "pasted" | "image";
+  origin: "typed" | "pasted" | "image" | "pdf" | "link";
+  source_name: string | null;
   created_at: string;
   updated_at: string;
 }

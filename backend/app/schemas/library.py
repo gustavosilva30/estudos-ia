@@ -114,8 +114,13 @@ class MaterialOut(BaseModel):
     content: str
     content_hash: str
     origin: str
+    source_name: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class LinkIn(BaseModel):
+    url: str = Field(min_length=8, max_length=2000)
 
 
 class NoteIn(BaseModel):

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImportSource } from "@/components/lesson/import-source";
 import { ReadAloud } from "@/components/read-aloud";
 import { Alert, Button, Card } from "@/components/ui/primitives";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -47,6 +48,8 @@ export function MaterialsPanel({ lessonId, materials, onChanged }: Props) {
       </Alert>
       {error && <Alert>{error}</Alert>}
 
+      <ImportSource lessonId={lessonId} onImported={onChanged} />
+
       {materials.length === 0 && !adding && (
         <EmptyState
           title="Nenhum texto salvo nesta aula"
@@ -56,7 +59,7 @@ export function MaterialsPanel({ lessonId, materials, onChanged }: Props) {
             </Button>
           }
         >
-          Cole ou digite o conteúdo da aula para poder usar a IA.
+          Cole ou digite o conteúdo da aula, ou importe um PDF ou link acima, para poder usar a IA.
         </EmptyState>
       )}
 
@@ -134,7 +137,9 @@ function MaterialCard({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold">{label}</h3>
-          <Badge>{{ pasted: "colado", image: "lido de imagem", typed: "digitado" }[material.origin] ?? "digitado"}</Badge>
+          <Badge>
+            {{ pasted: "colado", image: "lido de imagem", typed: "digitado", pdf: "PDF", link: "link" }[material.origin] ?? "digitado"}
+          </Badge>
           <span className="text-xs text-muted">atualizado em {formatDateTime(material.updated_at)}</span>
         </div>
         {!editing && (
@@ -148,6 +153,8 @@ function MaterialCard({
           </div>
         )}
       </div>
+
+      {material.source_name && <SourceLine origin={material.origin} name={material.source_name} />}
 
       {editing ? (
         <div className="space-y-3">
@@ -179,6 +186,23 @@ function MaterialCard({
         </div>
       )}
     </Card>
+  );
+}
+
+/** De onde veio o texto importado. O endereço só vira link clicável se for http(s). */
+function SourceLine({ origin, name }: { origin: Material["origin"]; name: string }) {
+  const clickable = origin === "link" && /^https?:\/\//i.test(name);
+  return (
+    <p className="mb-3 break-all text-xs text-muted">
+      Fonte:{" "}
+      {clickable ? (
+        <a href={name} target="_blank" rel="noopener noreferrer" className="underline">
+          {name}
+        </a>
+      ) : (
+        name
+      )}
+    </p>
   );
 }
 

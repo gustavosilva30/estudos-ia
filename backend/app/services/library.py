@@ -215,13 +215,14 @@ def add_material(db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID, body: Ma
 
 
 def add_material_text(
-    db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID, content: str, origin: str
+    db: Session, user_id: uuid.UUID, lesson_id: uuid.UUID, content: str, origin: str, source_name: str | None = None
 ) -> SourceMaterial:
-    """origin: typed | pasted | image (texto extraído de uma imagem, já revisado pelo usuário)."""
+    """origin: typed | pasted | image (texto lido de imagem) | pdf | link. source_name: nome do PDF ou endereço do link."""
     lesson = _owned(db, Lesson, user_id, lesson_id, "Aula")
     _require_text(content)
     material = SourceMaterial(
         user_id=user_id, lesson_id=lesson.id, content=content, content_hash=content_hash(content), origin=origin,
+        source_name=source_name,
     )
     db.add(material)
     _touch(lesson)

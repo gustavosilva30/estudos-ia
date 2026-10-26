@@ -25,7 +25,7 @@ barreira; a principal continua sendo o backend, que filtra todas as consultas pe
 | `subjects` | Matérias | nome único por usuário; nome não vazio |
 | `folders` | Pastas (hierárquicas) por matéria | pai do mesmo usuário; não pode ser pai de si mesma |
 | `lessons` | Aulas | matéria/pasta do mesmo usuário; `search_vector` (tsvector português, GIN) |
-| `source_materials` | Texto original | conteúdo não vazio; `content_hash` SHA-256; origem ∈ {typed, pasted}; `search_vector` (GIN) |
+| `source_materials` | Texto original | conteúdo não vazio; `content_hash` SHA-256; origem ∈ {typed, pasted, image, pdf, link}; `source_name` (nome do PDF ou endereço do link); `search_vector` (GIN) |
 | `notes` | Anotações pessoais | aula do mesmo usuário |
 
 ## Políticas de exclusão
@@ -48,6 +48,7 @@ barreira; a principal continua sendo o backend, que filtra todas as consultas pe
 - `ai_generations.material_id` agora aceita `NULL` e há `attachment_id` (FK composta, cascata). `CHECK`
   `num_nonnulls(material_id, attachment_id) = 1`: a origem é **um texto OU uma imagem**. Nova chave única de anti-duplicação
   para imagens.
+- Migration 0004 (`infra/sql/0004-documentos-e-links.sql`): `source_materials.origin` aceita `pdf` e `link` e ganha `source_name`.
 - `source_materials.origin` aceita também `image` (texto transcrito de uma imagem e revisado pelo usuário).
 - Excluir a imagem apaga as gerações dela; **resumos já salvos permanecem** (`summaries.generation_id` vira NULL).
 - Atenção ao backup: as imagens ficam no PostgreSQL, então aumentam o tamanho do banco e do `pg_dump` (limite de 200 MB por usuário).

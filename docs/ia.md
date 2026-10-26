@@ -207,3 +207,19 @@ isolamento de prompt e ausência de segredos/e-mail no que vai ao provedor, limi
 sobrecarga/erros/resposta inválida (com registro de uso), cotas diária/por minuto/mensal e custo, validações,
 isolamento entre usuários (nenhuma chamada nem custo para recurso alheio), e o ciclo de resumos
 (salvar, editar, versões, restaurar, duplicar, listar/pesquisar, exclusões em cascata, isolamento).
+
+
+## Documentos (PDF) e links
+
+A IA lê o conteúdo de um **PDF** ou de uma **página web pública** depois que o servidor **extrai o texto** e o salva como texto original da aula
+(`origin` = `pdf` ou `link`, com `source_name`). Dali em diante tudo funciona como um texto comum: pode ser revisado/editado, e resumos, flashcards,
+exercícios etc. usam o mesmo caminho, cache e cotas. O arquivo e a página em si **não são guardados**.
+
+- **PDF:** conteúdo conferido (`%PDF-`, não o nome nem o tipo declarado), até `MAX_DOCUMENT_BYTES` e `MAX_PDF_PAGES`; PDF com senha ou sem texto (escaneado) é recusado com orientação
+  (escaneados: enviar as páginas como imagem e usar "Extrair texto"). Texto acima de 100 mil caracteres é recusado em vez de cortado em silêncio.
+- **Link:** aceita HTML, texto simples e PDF; menus, rodapés e scripts são descartados. Páginas que exigem login ou montam o conteúdo com JavaScript não funcionam (a mensagem sugere colar o texto).
+- **Segurança (SSRF):** um link faz o *servidor* abrir uma conexão, então só passam `http`/`https` nas portas 80/443, sem usuário/senha; o nome é resolvido no servidor e **todo IP precisa ser público**
+  (loopback, redes privadas, link-local e metadados de nuvem são recusados); a conexão usa o IP já conferido (sem *DNS rebinding*); redirecionamentos (máx. 3) passam pelas mesmas regras;
+  tamanho e tempo limitados; proxies do ambiente são ignorados. O texto de terceiros é tratado como dado nos prompts, como qualquer texto do usuário, mas lembre que ele é enviado ao provedor de IA.
+- Migration `0004` (SQL em `infra/sql/0004-documentos-e-links.sql`). Dependência nova: `pypdf`.
+- Fora do escopo por ora: DOCX/PPTX, Google Docs/Drive privados, PDFs escaneados com OCR automático.

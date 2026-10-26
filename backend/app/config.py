@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     max_attachments_per_lesson: int = 20
     max_user_storage_bytes: int = 200_000_000  # imagens guardadas por usuário
 
+    # Documentos e links (viram texto da aula; o arquivo/página em si não é guardado)
+    max_document_bytes: int = 15_000_000  # PDF enviado
+    max_pdf_pages: int = 300
+    max_link_bytes: int = 10_000_000  # conteúdo baixado de um link
+    link_timeout_seconds: float = 15
+    rate_limit_import_user: int = 30  # importações (PDF/link) por usuário na janela
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
