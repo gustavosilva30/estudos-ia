@@ -90,6 +90,11 @@ export const CalculatorIcon = (p: IconProps) => (
     <path d="M8 7h8M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01" />
   </Base>
 );
+export const FormulaIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M18 5H7l5 7-5 7h11" />
+  </Base>
+);
 export const SearchIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="11" cy="11" r="7" />

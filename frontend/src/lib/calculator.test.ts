@@ -132,6 +132,15 @@ describe("números complexos, matrizes e unidades", () => {
   });
 });
 
+describe("comparações", () => {
+  it("compara, combina condições e usa condicional", () => {
+    expect(text("3 < 5")).toBe("true");
+    expect(text("2 >= 3")).toBe("false");
+    expect(text("1 == 1 and 2 != 3")).toBe("true");
+    expect(text("5 > 3 ? 10 : 20")).toBe("10");
+  });
+});
+
 describe("variáveis, funções do usuário e ans", () => {
   it("guarda variáveis e funções entre cálculos", () => {
     const scope = new Map<string, unknown>();

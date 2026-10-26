@@ -1,5 +1,14 @@
 import {
   absDependencies,
+  andDependencies,
+  equalDependencies,
+  largerDependencies,
+  largerEqDependencies,
+  notDependencies,
+  orDependencies,
+  smallerDependencies,
+  smallerEqDependencies,
+  unequalDependencies,
   acosDependencies,
   acoshDependencies,
   addDependencies,
@@ -103,7 +112,8 @@ const math: MathJsInstance = create({
   reDependencies, roundDependencies, signDependencies, sinDependencies, sinhDependencies, sqrtDependencies,
   squareDependencies, stdDependencies, subtractDependencies, sumDependencies, tanDependencies, tanhDependencies,
   toDependencies, traceDependencies, transposeDependencies, unaryMinusDependencies, unitDependencies,
-  varianceDependencies, argDependencies,
+  varianceDependencies, argDependencies, andDependencies, equalDependencies, largerDependencies,
+  largerEqDependencies, notDependencies, orDependencies, smallerDependencies, smallerEqDependencies, unequalDependencies,
 });
 
 // Guarda o que este módulo precisa e bloqueia, para as expressões, TODA função fora da lista abaixo (incluindo as
@@ -119,10 +129,10 @@ const blocked = () => {
 };
 const ALLOWED = new Set(
   (
-    "abs acos acosh add arg asin asinh atan atan2 atanh cbrt ceil combinations complex conj cos cosh cross cube det " +
-    "divide dot dotDivide dotMultiply dotPow exp factorial fix floor fraction gamma gcd hypot im inv isPrime lcm log " +
-    "log10 log2 matrix max mean median min mod multiply nthRoot permutations pow prod re round sign sin sinh sqrt " +
-    "square std subtract sum tan tanh to trace transpose unaryMinus unit variance"
+    "abs acos acosh add and arg asin asinh atan atan2 atanh cbrt ceil combinations complex conj cos cosh cross cube det " +
+    "divide dot dotDivide dotMultiply dotPow equal exp factorial fix floor fraction gamma gcd hypot im inv isPrime larger largerEq lcm log " +
+    "log10 log2 matrix max mean median min mod multiply not nthRoot or permutations pow prod re round sign sin sinh smaller smallerEq sqrt " +
+    "square std subtract sum tan tanh to trace transpose unaryMinus unequal unit variance"
   ).split(" "),
 );
 const MAX_COMBINATORIAL = 10_000; // C(1e9, 5e8) levaria minutos: números de combinatória ficam limitados

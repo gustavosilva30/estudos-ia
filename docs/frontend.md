@@ -118,3 +118,16 @@ Calculadora científica **sem IA**, 100% no navegador (nada vai ao servidor, nã
   gigantes (`ones`, `zeros`, `identity`, `range`, `1:1e9`...) ficam bloqueadas; combinatória é limitada a 10 000; expressão máxima de 500 caracteres; fatorial acima de 170 dá infinito sem calcular.
   Os testes cobrem esses bloqueios e o tempo de resposta de cálculos gigantes.
 - **Fora do escopo:** CAS (simplificar/derivar/integrar simbolicamente), resolução de sistemas de equações e gráficos 3D.
+
+
+## Fórmulas (`/formulas`)
+
+Biblioteca de fórmulas com **resolvedor passo a passo**, sem IA e 100% no navegador. Código: `src/lib/formula-engine.ts` (motor), `src/lib/formulas.ts` (catálogo) e `src/components/formulas/`.
+
+- **Catálogo (~50):** Matemática (Pitágoras, Bhaskara, soma e produto, vértice, áreas e volumes, leis dos senos e cossenos, trigonometria no triângulo retângulo, geometria analítica, porcentagem, regra de três, juros, PA/PG, combinatória),
+  Física (cinemática, Newton, energia, potência, pressão, empuxo, calor, Ohm, ondas) e Química (densidade, mol, molaridade, diluição, pH, gases ideais). Busca sem acento e filtro por área.
+- **Resolvedor:** a pessoa escolhe o que descobrir, informa os valores (vírgula decimal aceita) e vê a fórmula isolada, os valores substituídos e o resultado, desenhados com KaTeX. Valida entradas (positivo, inteiro...) e condições
+  (a ≠ 0, hipotenusa maior que o cateto...). Bhaskara mostra Δ e trata duas raízes, uma raiz ou nenhuma. Ângulos em graus; taxas em %.
+- **Como adicionar uma fórmula:** inclua um item em `formulas.ts` com variáveis, um ou mais `solver` (contas em ordem + passos em LaTeX com `«x»`) e um `example` com os resultados esperados. Os testes conferem **cada exemplo**,
+  que cada símbolo usado existe e que todo LaTeX desenha sem erro.
+- **Fora do escopo por ora:** fórmulas próprias salvas na conta, favoritos, vínculo com aulas e "explicar com IA".
